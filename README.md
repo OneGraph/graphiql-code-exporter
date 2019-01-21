@@ -3,7 +3,7 @@
 A GraphiQL addon that generates ready-to-run code for your queries and mutations.    
 It provides a wide range of default snippets, but is also extendable with custom snippets.
 
-![Demo](demo.gif | width=400)
+<img src="demo.gif" width=400 style="border-left:1px solid rgb(220, 220, 220)">
 
 ## Installation
 
