@@ -33,7 +33,7 @@ export default {
     operation,
     options,
   }) => {
-    const getComment = commentsFactory(options.comments)
+    const getComment = commentsFactory(options.comments, comments)
 
     const serverComment = options.server ? getComment('nodeFetch') : ''
     const serverImport = options.server

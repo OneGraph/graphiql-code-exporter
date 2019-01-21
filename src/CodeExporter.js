@@ -10,6 +10,9 @@ import GraphiQL from '@onegraph/graphiql'
 import { highlightAuto } from 'highlight.js'
 import 'highlight.js/styles/github.css'
 
+// TODO: not sure if we should include all snippets by default
+import defaultSnippets from './snippets'
+
 function formatVariableName(name) {
   var uppercasePattern = /[A-Z]/g
 

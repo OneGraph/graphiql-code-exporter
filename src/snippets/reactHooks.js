@@ -18,7 +18,7 @@ export default {
     operation,
     options,
   }) => {
-    const getComment = commentsFactory(options.comments)
+    const getComment = commentsFactory(options.comments, comments)
 
     const reactImport = `import React, { useState, useEffect } from "react"\n`
 
