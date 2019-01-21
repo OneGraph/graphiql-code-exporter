@@ -99,6 +99,7 @@ What we call **snippet** here, is actually an object with 4 required keys.
 
 The following example implements a subset of the build-in *Fetch API* snippet.
 The output will look similar to the demo above.
+
 ```javascript
 const fetchSnippet = {
   language: 'JavaScript',
@@ -118,7 +119,7 @@ const fetchSnippet = {
     return `
 ${serverImport}
 
-const res = await fetch(${serverUrl}, {
+const res = await fetch("${serverUrl}", {
   method: 'POST',
   body: JSON.stringify({ query: \`${operation}\` }),
 })
