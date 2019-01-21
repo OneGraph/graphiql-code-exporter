@@ -1,5 +1,5 @@
-import formatJavaScript from '../utils/formatJavaScript'
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter'
+import formatJavaScript from '../utils/formatJavaScript';
+import capitalizeFirstLetter from '../utils/capitalizeFirstLetter';
 
 export default {
   language: 'JavaScript',
@@ -13,7 +13,7 @@ export default {
   ],
 
   getSnippet: ({
-    appId,
+    serverUrl,
     variableName,
     operationType,
     operationName,
@@ -21,9 +21,9 @@ export default {
     options,
   }) => {
     const graphqlOperation = `const ${variableName} = \`
-${operation}\``
+${operation}\``;
 
-    let component
+    let component;
 
     if (operationType === 'query') {
       component = `
@@ -38,7 +38,7 @@ ${operation}\``
     )
   }
 }}
-</Query>`
+</Query>`;
     }
 
     if (operationType === 'mutation') {
@@ -51,27 +51,27 @@ ${operation}\``
       // call ${operationName}() to run the mutation
       return <button onClick={${operationName}}>Mutate</button>
     }}
-    </Mutation>`
+    </Mutation>`;
     }
 
     const clientSetup = options.client
-      ? `const client = new ApolloClient({
+      ? `const apolloClient = new ApolloClient({
       cache: new InMemoryCache(),
 link: new HttpLink({
-  uri: 'https://serve.onegraph.com/dynamic?app_id=' + APP_ID,
+  uri: "${serverUrl}",
 }),
 })\n`
-      : ''
+      : '';
 
     const imports = [
       operationType === 'query' ? 'Query' : 'Mutation',
       options.client && 'ApolloProvider',
-    ].filter(Boolean)
+    ].filter(Boolean);
 
-    const reactImports = `import { ${imports.join(', ')} } from 'react-apollo'`
+    const reactImports = `import { ${imports.join(', ')} } from 'react-apollo'`;
     const clientImports = options.client
       ? `import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'`
-      : ''
+      : '';
 
     const snippet = `
   ${clientImports}
@@ -79,7 +79,6 @@ link: new HttpLink({
 
 ${graphqlOperation}
 
-${options.client ? `const APP_ID = "${appId}"\n` : ''}
 ${clientSetup}
 function ${capitalizeFirstLetter(operationName)}() {
   return (
@@ -88,8 +87,8 @@ function ${capitalizeFirstLetter(operationName)}() {
     ${options.client ? '</ApolloProvider>' : ''} 
   )
 }
-`
+`;
 
-    return formatJavaScript(snippet)
+    return formatJavaScript(snippet);
   },
-}
+};

@@ -57,17 +57,29 @@ class CodeExporter extends Component {
   constructor(props, context) {
     super(props, context)
 
+    const { initialSnippet, snippets } = props
+
+    if (!snippets || snippets.length === 0) {
+      // TODO: throw
+      return false
+    }
+
+    const snippet = initialSnippet || snippets[0]
+
     this.state = {
       showCopiedTooltip: false,
-      snippet: props.initialSnippet,
-      options: getInitialOptions(props.initialSnippet),
+      options: getInitialOptions(snippet),
+      snippet,
       query: props.query,
       operationIndex: 0,
     }
   }
 
   static getDerivedStateFromProps(props, state) {
-    const operations = getOperations(props.query)
+    // for now we do not support subscriptions, might add those later
+    const operations = getOperations(props.query).filter(
+      op => op.operation !== 'subscription'
+    )
     const operation = operations[state.operationIndex] || operations[0]
 
     return {
@@ -110,7 +122,7 @@ class CodeExporter extends Component {
     })
 
   render() {
-    const { appId, snippets } = this.props
+    const { serverUrl, snippets } = this.props
     const {
       snippet,
       options,
@@ -120,18 +132,18 @@ class CodeExporter extends Component {
       showCopiedTooltip,
     } = this.state
 
-    const { name, language, getSnippet } = snippet
-
-    if (!operation) {
+    if (!operation || !snippet) {
       return null
     }
+
+    const { name, language, getSnippet } = snippet
 
     const operationName = getOperationName(operation)
     const operationDisplayName = getOperationDisplayName(operation)
     const query = print(operation)
 
     let codeSnippet = getSnippet({
-      appId: appId,
+      serverUrl,
       operation: query,
       operationType: operation.operation,
       variableName: formatVariableName(operationName),
@@ -187,7 +199,7 @@ class CodeExporter extends Component {
                 .map(snippet => snippet.name)
                 .sort((a, b) => a > b || -1)
                 .map(snippetName => (
-                  <li onClick={() => this.setMode(snippetName)}>
+                  <li onClick={() => this.setSnippet(snippetName)}>
                     {snippetName}
                   </li>
                 ))}
@@ -257,6 +269,7 @@ class CodeExporter extends Component {
           style={{
             padding: '15px 12px',
             backgroundColor: 'rgb(246, 247, 248)',
+            margin: 0,
           }}>
           <code
             style={{
@@ -279,8 +292,8 @@ class CodeExporter extends Component {
 // yet we might want to change that at some point in order to have a self-contained standalone
 export default function CodeExporterWrapper({
   query,
-  appId,
-  hideCodeExporter,
+  serverUrl,
+  hideCodeExporter = () => {},
   snippets = defaultSnippets,
 }) {
   return (
@@ -300,8 +313,8 @@ export default function CodeExporterWrapper({
       </div>
       <div
         className="history-contents"
-        style={{ borderTop: '1px solid #d6d6d6', paddingBottom: 20 }}>
-        <CodeExporter query={query} appId={appId} snippets={snippets} />
+        style={{ borderTop: '1px solid #d6d6d6' }}>
+        <CodeExporter query={query} serverUrl={serverUrl} snippets={snippets} />
       </div>
     </div>
   )

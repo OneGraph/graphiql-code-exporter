@@ -1,33 +1,33 @@
-import formatJavaScript from '../utils/formatJavaScript'
-import commentsFactory from '../utils/commentsFactory'
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter'
+import formatJavaScript from '../utils/formatJavaScript';
+import commentsFactory from '../utils/commentsFactory';
+import capitalizeFirstLetter from '../utils/capitalizeFirstLetter';
 
 const comments = {
   effectEmptyArray: `empty array to only fetch on did mount\n`,
   finallyLoading: `finally makes sures loading is set to false in any case\n`,
-}
+};
 export default {
   language: 'JavaScript',
   name: 'React: Hooks',
-  options: [{ id: 'comments', label: 'show comments', initial: false }],
+  options: [{id: 'comments', label: 'show comments', initial: false}],
   getSnippet: ({
-    appId,
+    serverUrl,
     variableName,
     operationType,
     operationName,
     operation,
     options,
   }) => {
-    const getComment = commentsFactory(options.comments, comments)
+    const getComment = commentsFactory(options.comments, comments);
 
-    const reactImport = `import React, { useState, useEffect } from "react"\n`
+    const reactImport = `import React, { useState, useEffect } from "react"\n`;
 
     const graphqlQuery = `const ${variableName} = \`
-  ${operation}\``
+  ${operation}\``;
 
-    const appIdVariable = `const APP_ID = "${appId}"`
+    const urlVariable = `const serverUrl = "${serverUrl}"`;
 
-    const fetchBody = `fetch('https://serve.onegraph.com/dynamic?app_id=' + APP_ID, {
+    const fetchBody = `fetch(serverUrl, {
     method: 'POST',
     body: JSON.stringify({ query: ${variableName} }),
   })
@@ -41,13 +41,13 @@ export default {
     })
     .catch(err => setErrors([err]))
     ${getComment('finallyLoading')}.finally(() => setLoading(false))
-  `
+  `;
 
     const snippet = `
 ${reactImport}
 ${graphqlQuery}
 
-${appIdVariable}
+${urlVariable}
 
 function ${capitalizeFirstLetter(operationName)}() {
   const [loading, setLoading] = useState(false)
@@ -57,6 +57,7 @@ function ${capitalizeFirstLetter(operationName)}() {
   useEffect(
     () => {
       setLoading(true)
+      
       ${fetchBody}
     },
     ${getComment('effectEmptyArray')}[]
@@ -68,8 +69,8 @@ function ${capitalizeFirstLetter(operationName)}() {
   return (
     <div>{JSON.stringify(data, null, 2)}</div>
   )
-}`
+}`;
 
-    return formatJavaScript(snippet)
+    return formatJavaScript(snippet);
   },
-}
+};
