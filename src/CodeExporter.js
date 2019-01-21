@@ -130,7 +130,7 @@ class CodeExporter extends Component {
     const operationDisplayName = getOperationDisplayName(operation)
     const query = print(operation)
 
-    let rawSnippet = (codeSnippet = getSnippet({
+    let codeSnippet = getSnippet({
       appId: appId,
       operation: query,
       operationType: operation.operation,
@@ -140,8 +140,9 @@ class CodeExporter extends Component {
         flags[id] = options[id].value
         return flags
       }, {}),
-    }))
+    })
 
+    const rawSnippet = codeSnippet
     // we use a try catch here because otherwise highlight might break the render
     try {
       codeSnippet = highlightAuto(codeSnippet, [language]).value
@@ -260,7 +261,7 @@ class CodeExporter extends Component {
           <code
             style={{
               fontFamily:
-                'Dank Monk, Hack, Fira Code, Consolas, Inconsolata, Droid Sans Mono, Monaco, monospace',
+                'Dank Monk, Fira Code, Hack, Consolas, Inconsolata, Droid Sans Mono, Monaco, monospace',
               textRendering: 'optimizeLegibility',
               fontSize: 12,
             }}
@@ -274,6 +275,8 @@ class CodeExporter extends Component {
   }
 }
 
+// we borrow class names from graphiql's CSS as the visual appearance is the same
+// yet we might want to change that at some point in order to have a self-contained standalone
 export default function CodeExporterWrapper({
   query,
   appId,
