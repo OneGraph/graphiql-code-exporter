@@ -79,8 +79,9 @@ export default class GraphiQLWithCodeExporter extends Component {
 ## Snippets
 
 What we call **snippet** here, is actually an object with 4 required keys.
+
 | Key | Type | Description |
-| --- | --- | ---- | 
+| --- | --- | ---- |
 | name | *(string)* | A name that is used to identify the snippet. |
 | language | *(string)* | A language string that is used to group the snippets by language. It is also used to highlight the code so it should match the [highlight.js]() language list. | 
 | options | *(Option[])* | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false. |
