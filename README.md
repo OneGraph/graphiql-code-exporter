@@ -5,8 +5,7 @@ It provides a wide range of default snippets, but is also extendable with custom
 
 > Read the [introduction blog post]() to learn why and how we built it!
 
-
-<img src="demo.gif" width=400 style="border-left:1px solid rgb(220, 220, 220)">
+> TODO: DEMO HERE
 
 ## Installation
 
@@ -78,6 +77,7 @@ export default class GraphiQLWithCodeExporter extends Component {
 | serverUrl | *(URI)* | The server url for your GraphQL endpoint. |
 | query | *(string)* | A string containing the GraphQL query that is synced with the GraphiQL query editor. |
 | snippets | *(Snippet[])* | A list of snippet objects that one can choose from to generate code snippets. |
+| theme | *(string)* | The name of the [highlight.js theme](https://highlightjs.org/static/demo/) in lower case and with '-' instead of spaces e.g. `solarized-light`.  Defaults to `github` |
 
 ## Snippets
 
@@ -100,7 +100,7 @@ What we call **snippet** here, is actually an object with 4 required keys.
 
 #### Example
 
-The following example implements a subset of the build-in *Fetch API* snippet.
+The following example implements a subset of the build-in *Fetch API* snippet.    
 The output will look similar to the demo above.
 
 ```javascript
