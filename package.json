@@ -33,6 +33,7 @@
     "graphql": "^14.1.1",
     "highlight.js": "^9.13.1",
     "prettier": "^1.16.0",
-    "react": "^16.7.0"
+    "react": "^16.7.0",
+    "reason": "^3.3.4"
   }
 }

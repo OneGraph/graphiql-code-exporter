@@ -1,20 +1,19 @@
-import React, { Component } from 'react'
-import { Button, Icon, Tooltip } from 'antd'
-import copy from 'copy-to-clipboard'
-import { parse, print } from 'graphql/language'
+import React, {Component} from 'react';
+import {Button, Icon, Tooltip} from 'antd';
+import copy from 'copy-to-clipboard';
+import {parse, print} from 'graphql/language';
 
 // TODO: can we use plain graphiql nodes or do we need @onegraph?
-import GraphiQL from '@onegraph/graphiql'
+import GraphiQL from '@onegraph/graphiql';
 
 // TODO: lazy load languages and css on mount
-import { highlightAuto } from 'highlight.js'
-import 'highlight.js/styles/github.css'
+import {highlightAuto, registerLanguage} from 'highlight.js/lib/highlight';
 
 // TODO: not sure if we should include all snippets by default
-import defaultSnippets from './snippets'
+import defaultSnippets from './snippets';
 
 function formatVariableName(name) {
-  var uppercasePattern = /[A-Z]/g
+  var uppercasePattern = /[A-Z]/g;
 
   return (
     name.charAt(0).toUpperCase() +
@@ -22,7 +21,7 @@ function formatVariableName(name) {
       .slice(1)
       .replace(uppercasePattern, '_$&')
       .toUpperCase()
-  )
+  );
 }
 
 const getInitialOptions = snippet =>
@@ -30,41 +29,41 @@ const getInitialOptions = snippet =>
     newOptions[option.id] = {
       label: option.label,
       value: option.initial,
-    }
+    };
 
-    return newOptions
-  }, {})
+    return newOptions;
+  }, {});
 
 // TODO: filter subscriptions
 const getOperations = query => {
-  let operations = []
+  let operations = [];
   try {
-    operations = parse(query).definitions
+    operations = parse(query).definitions;
   } catch (e) {}
 
-  return operations
-}
+  return operations;
+};
 
 const getOperationName = operation =>
-  operation.name ? operation.name.value : operation.operation
+  operation.name ? operation.name.value : operation.operation;
 
 const getOperationDisplayName = operation =>
   operation.name
     ? operation.name.value
-    : '<Unnamed:' + operation.operation + '>'
+    : '<Unnamed:' + operation.operation + '>';
 
 class CodeExporter extends Component {
   constructor(props, context) {
-    super(props, context)
+    super(props, context);
 
-    const { initialSnippet, snippets } = props
+    const {initialSnippet, snippets} = props;
 
     if (!snippets || snippets.length === 0) {
       // TODO: throw
-      return false
+      return false;
     }
 
-    const snippet = initialSnippet || snippets[0]
+    const snippet = initialSnippet || snippets[0];
 
     this.state = {
       showCopiedTooltip: false,
@@ -72,43 +71,75 @@ class CodeExporter extends Component {
       snippet,
       query: props.query,
       operationIndex: 0,
-    }
+    };
+  }
+
+  componentDidMount() {
+    const style = document.createElement('link');
+    style.setAttribute('rel', 'stylesheet');
+    style.setAttribute(
+      'href',
+      '//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.13.1/styles/' +
+        this.props.theme +
+        '.min.css',
+    );
+
+    document.head.appendChild(style);
+    this.style = style;
+
+    this.languages = [];
+    this.props.snippets.forEach(snippet => {
+      const lang = snippet.language.toLowerCase();
+
+      if (this.languages.indexOf(lang) === -1) {
+        const langSupport = require('highlight.js/lib/languages/' + lang);
+        registerLanguage(lang, langSupport);
+      }
+    });
+  }
+
+  componentWillUnmount() {
+    this.style.remove();
   }
 
   static getDerivedStateFromProps(props, state) {
     // for now we do not support subscriptions, might add those later
     const operations = getOperations(props.query).filter(
-      op => op.operation !== 'subscription'
-    )
-    const operation = operations[state.operationIndex] || operations[0]
+      op => op.operation !== 'subscription',
+    );
+    const operation = operations[state.operationIndex] || operations[0];
 
     return {
       operations,
       operation,
       operationIndex: state.operationIndex,
       query: props.query,
-    }
+    };
   }
 
   setSnippet = name => {
-    const snippet = this.props.snippets.find(snippet => snippet.name === name)
+    const snippet = this.props.snippets.find(
+      snippet =>
+        snippet.name === name &&
+        snippet.language === this.state.snippet.language,
+    );
 
     this.setState({
       options: getInitialOptions(snippet),
       snippet,
-    })
-  }
+    });
+  };
 
   setLanguage = language => {
     const snippet = this.props.snippets.find(
-      snippet => snippet.language === language
-    )
+      snippet => snippet.language === language,
+    );
 
     this.setState({
       options: getInitialOptions(snippet),
       snippet,
-    })
-  }
+    });
+  };
 
   setOption = (id, value) =>
     this.setState({
@@ -119,10 +150,10 @@ class CodeExporter extends Component {
           value: value,
         },
       },
-    })
+    });
 
   render() {
-    const { serverUrl, snippets } = this.props
+    const {serverUrl, snippets} = this.props;
     const {
       snippet,
       options,
@@ -130,17 +161,17 @@ class CodeExporter extends Component {
       operation,
       operationIndex,
       showCopiedTooltip,
-    } = this.state
+    } = this.state;
 
     if (!operation || !snippet) {
-      return null
+      return null;
     }
 
-    const { name, language, generate } = snippet
+    const {name, language, generate} = snippet;
 
-    const operationName = getOperationName(operation)
-    const operationDisplayName = getOperationDisplayName(operation)
-    const query = print(operation)
+    const operationName = getOperationName(operation);
+    const operationDisplayName = getOperationDisplayName(operation);
+    const query = print(operation);
 
     let codeSnippet = generate({
       serverUrl,
@@ -149,15 +180,15 @@ class CodeExporter extends Component {
       variableName: formatVariableName(operationName),
       operationName,
       options: Object.keys(options).reduce((flags, id) => {
-        flags[id] = options[id].value
-        return flags
+        flags[id] = options[id].value;
+        return flags;
       }, {}),
-    })
+    });
 
-    const rawSnippet = codeSnippet
+    const rawSnippet = codeSnippet;
     // we use a try catch here because otherwise highlight might break the render
     try {
-      codeSnippet = highlightAuto(codeSnippet, [language]).value
+      codeSnippet = highlightAuto(codeSnippet, [language]).value;
     } catch (e) {}
 
     return (
@@ -174,7 +205,7 @@ class CodeExporter extends Component {
             }}>
             <GraphiQL.Menu label={operationDisplayName} title="Operation">
               {operations.map((op, index) => (
-                <li onClick={() => this.setState({ operationIndex: index })}>
+                <li onClick={() => this.setState({operationIndex: index})}>
                   {getOperationDisplayName(op)}
                 </li>
               ))}
@@ -205,7 +236,7 @@ class CodeExporter extends Component {
                 ))}
             </GraphiQL.Menu>
           </div>
-          <div style={{ padding: '0px 11px 10px' }}>
+          <div style={{padding: '0px 11px 10px'}}>
             <div
               style={{
                 fontWeight: 700,
@@ -222,13 +253,13 @@ class CodeExporter extends Component {
                   <input
                     id={optionId}
                     type="checkbox"
-                    style={{ position: 'relative', top: -1 }}
+                    style={{position: 'relative', top: -1}}
                     value={options[optionId].value}
                     onChange={() =>
                       this.setOption(optionId, !options[optionId].value)
                     }
                   />
-                  <label for={optionId} style={{ paddingLeft: 5 }}>
+                  <label for={optionId} style={{paddingLeft: 5}}>
                     {options[optionId].label}
                   </label>
                 </div>
@@ -238,7 +269,7 @@ class CodeExporter extends Component {
         <Tooltip
           title="Copied!"
           visible={showCopiedTooltip}
-          overlayStyle={{ fontSize: 10 }}>
+          overlayStyle={{fontSize: 10}}>
           <Button
             style={{
               fontSize: '1.2em',
@@ -254,21 +285,21 @@ class CodeExporter extends Component {
             }}
             type="link"
             onClick={() => {
-              copy(rawSnippet)
-              this.setState({ showCopiedTooltip: true }, () =>
+              copy(rawSnippet);
+              this.setState({showCopiedTooltip: true}, () =>
                 setTimeout(
-                  () => this.setState({ showCopiedTooltip: false }),
-                  450
-                )
-              )
+                  () => this.setState({showCopiedTooltip: false}),
+                  450,
+                ),
+              );
             }}>
             <Icon type="copy" />
           </Button>
         </Tooltip>
         <pre
+          className="hljs"
           style={{
             padding: '15px 12px',
-            backgroundColor: 'rgb(246, 247, 248)',
             margin: 0,
           }}>
           <code
@@ -282,9 +313,10 @@ class CodeExporter extends Component {
               __html: codeSnippet,
             }}
           />
+          <div style={{minHeight: 10}} />
         </pre>
       </div>
-    )
+    );
   }
 }
 
@@ -293,6 +325,7 @@ class CodeExporter extends Component {
 export default function CodeExporterWrapper({
   query,
   serverUrl,
+  theme = 'github',
   hideCodeExporter = () => {},
   snippets = defaultSnippets,
 }) {
@@ -313,9 +346,14 @@ export default function CodeExporterWrapper({
       </div>
       <div
         className="history-contents"
-        style={{ borderTop: '1px solid #d6d6d6' }}>
-        <CodeExporter query={query} serverUrl={serverUrl} snippets={snippets} />
+        style={{borderTop: '1px solid #d6d6d6'}}>
+        <CodeExporter
+          query={query}
+          serverUrl={serverUrl}
+          snippets={snippets}
+          theme={theme}
+        />
       </div>
     </div>
-  )
+  );
 }
