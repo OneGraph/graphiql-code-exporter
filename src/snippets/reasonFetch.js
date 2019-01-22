@@ -2,7 +2,7 @@ export default {
   language: 'ReasonML',
   name: 'Fetch API',
   options: [],
-  getSnippet: ({
+  generate: ({
     appId,
     variableName,
     operationType,

@@ -1,5 +1,5 @@
-import formatJavaScript from '../utils/formatJavaScript';
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter';
+import formatJavaScript from '../utils/formatJavaScript'
+import capitalizeFirstLetter from '../utils/capitalizeFirstLetter'
 
 export default {
   language: 'JavaScript',
@@ -11,8 +11,7 @@ export default {
       initial: false,
     },
   ],
-
-  getSnippet: ({
+  generate: ({
     serverUrl,
     variableName,
     operationType,
@@ -21,9 +20,9 @@ export default {
     options,
   }) => {
     const graphqlOperation = `const ${variableName} = \`
-${operation}\``;
+${operation}\``
 
-    let component;
+    let component
 
     if (operationType === 'query') {
       component = `
@@ -38,7 +37,7 @@ ${operation}\``;
     )
   }
 }}
-</Query>`;
+</Query>`
     }
 
     if (operationType === 'mutation') {
@@ -51,7 +50,7 @@ ${operation}\``;
       // call ${operationName}() to run the mutation
       return <button onClick={${operationName}}>Mutate</button>
     }}
-    </Mutation>`;
+    </Mutation>`
     }
 
     const clientSetup = options.client
@@ -61,17 +60,17 @@ link: new HttpLink({
   uri: "${serverUrl}",
 }),
 })\n`
-      : '';
+      : ''
 
     const imports = [
       operationType === 'query' ? 'Query' : 'Mutation',
       options.client && 'ApolloProvider',
-    ].filter(Boolean);
+    ].filter(Boolean)
 
-    const reactImports = `import { ${imports.join(', ')} } from 'react-apollo'`;
+    const reactImports = `import { ${imports.join(', ')} } from 'react-apollo'`
     const clientImports = options.client
       ? `import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'`
-      : '';
+      : ''
 
     const snippet = `
   ${clientImports}
@@ -87,8 +86,8 @@ function ${capitalizeFirstLetter(operationName)}() {
     ${options.client ? '</ApolloProvider>' : ''} 
   )
 }
-`;
+`
 
-    return formatJavaScript(snippet);
+    return formatJavaScript(snippet)
   },
-};
+}

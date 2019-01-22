@@ -136,13 +136,13 @@ class CodeExporter extends Component {
       return null
     }
 
-    const { name, language, getSnippet } = snippet
+    const { name, language, generate } = snippet
 
     const operationName = getOperationName(operation)
     const operationDisplayName = getOperationDisplayName(operation)
     const query = print(operation)
 
-    let codeSnippet = getSnippet({
+    let codeSnippet = generate({
       serverUrl,
       operation: query,
       operationType: operation.operation,

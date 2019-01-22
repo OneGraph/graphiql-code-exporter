@@ -3,6 +3,9 @@
 A GraphiQL addon that generates ready-to-run code for your queries and mutations.    
 It provides a wide range of default snippets, but is also extendable with custom snippets.
 
+> Read the [introduction blog post]() to learn why and how we built it!
+
+
 <img src="demo.gif" width=400 style="border-left:1px solid rgb(220, 220, 220)">
 
 ## Installation
@@ -85,7 +88,7 @@ What we call **snippet** here, is actually an object with 4 required keys.
 | name | *(string)* | A name that is used to identify the snippet. |
 | language | *(string)* | A language string that is used to group the snippets by language. It is also used to highlight the code so it should match the [highlight.js]() language list. | 
 | options | *(Option[])* | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false. |
-| getSnippet | *(Function)* | A function that returns the generated code as a single string. It receives below listed arguments as an object. |
+| generate | *(Function)* | A function that returns the generated code as a single string. It receives below listed arguments as an object. |
 
 #### Arguments
 1. `serverUrl` (*string*): The passed GraphQL server url
@@ -109,7 +112,7 @@ const fetchSnippet = {
     label: 'server-side usage',
     initial: false,
   }],
-  getSnippet: ({
+  generate: ({
     serverUrl,
     operation,
     options
