@@ -17,6 +17,20 @@ yarn add graphiql-code-exporter
 npm i --save graphiql-code-exporter
 ```
 
+## Built-in Snippets
+- **JavaScript**
+  - fetch
+  - react-apollo
+  - react-with-hooks
+- **Python**
+  - graphqlclient
+  - sgqlc
+- **Reason**
+  - reason-apollo
+  - bs-fetch
+- **Ruby**
+  - graphql-client
+
 ## Usage
 
 ```javascript
@@ -100,7 +114,7 @@ What we call **snippet** here, is actually an object with 4 required keys.
 
 #### Example
 
-The following example implements a subset of the build-in *Fetch API* snippet.    
+The following example implements a subset of the built-in *Fetch API* snippet.    
 The output will look similar to the demo above.
 
 ```javascript
@@ -135,7 +149,21 @@ console.log(data, errors)
 }
 ```
 
+#### Extending the built-in snippets
+If we want to use both custom and all the built-in snippets, we can import them from npm.
 
+```javascript
+import snippets from 'graphiql-code-exporter/lib/snippets'
+
+const customSnippet = /* custom snippet */
+
+const extendedSnippets = [
+  ...snippets,
+  customSnippet
+]
+```
+
+This is also useful if you want to filter or modify single snippets.
 
 ## License
 graphiql-code-exporter is licensed under the [MIT License](http://opensource.org/licenses/MIT).<br>
