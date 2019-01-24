@@ -1,5 +1,5 @@
-import { format } from 'prettier/standalone'
-import babylon from 'prettier/parser-babylon'
+import {format} from 'prettier/standalone';
+import babylon from 'prettier/parser-babylon';
 
 export default function formatJavaScript(code) {
   return format(code, {
@@ -7,5 +7,5 @@ export default function formatJavaScript(code) {
     semi: false,
     parser: 'babylon',
     plugins: [babylon],
-  })
+  });
 }

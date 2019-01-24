@@ -10,7 +10,7 @@ const comments = {
 
 export default {
   language: 'JavaScript',
-  name: 'Fetch API',
+  name: 'fetch',
   options: [
     {
       id: 'comments',

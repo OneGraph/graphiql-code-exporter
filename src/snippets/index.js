@@ -1,6 +1,26 @@
-import fetch from './fetch'
-import reactApollo from './reactApollo'
-import reactHooks from './reactHooks'
-import reasonFetch from './reasonFetch'
+// javascript
+import jsFetch from './javascript/fetch'
+import jsReactApollo from './javascript/reactApollo'
+import jsReactHooks from './javascript/reactHooks'
 
-export default [fetch, reactApollo, reactHooks, reasonFetch]
+// reason
+import reasonFetch from './reason/fetch'
+import reasonApollo from './reason/apollo'
+
+// ruby
+import rubyGraphqlClient from './ruby/graphqlClient'
+
+// python
+import pythonGraphqlclient from './python/graphqlclient'
+import pythonSgqlc from './python/sgqlc'
+
+export default [
+  jsFetch,
+  jsReactApollo,
+  jsReactHooks,
+  reasonFetch,
+  reasonApollo,
+  rubyGraphqlClient,
+  pythonGraphqlclient,
+  pythonSgqlc,
+]

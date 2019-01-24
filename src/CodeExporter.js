@@ -2,12 +2,10 @@ import React, {Component} from 'react';
 import {Button, Icon, Tooltip} from 'antd';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql/language';
+import {highlightAuto, registerLanguage} from 'highlight.js/lib/highlight';
 
 // TODO: can we use plain graphiql nodes or do we need @onegraph?
 import GraphiQL from '@onegraph/graphiql';
-
-// TODO: lazy load languages and css on mount
-import {highlightAuto, registerLanguage} from 'highlight.js/lib/highlight';
 
 // TODO: not sure if we should include all snippets by default
 import defaultSnippets from './snippets';
@@ -94,6 +92,7 @@ class CodeExporter extends Component {
       if (this.languages.indexOf(lang) === -1) {
         const langSupport = require('highlight.js/lib/languages/' + lang);
         registerLanguage(lang, langSupport);
+        this.languages.push(lang);
       }
     });
   }
@@ -169,6 +168,8 @@ class CodeExporter extends Component {
 
     const {name, language, generate} = snippet;
 
+    console.log(this.languages);
+
     const operationName = getOperationName(operation);
     const operationDisplayName = getOperationDisplayName(operation);
     const query = print(operation);
@@ -188,7 +189,7 @@ class CodeExporter extends Component {
     const rawSnippet = codeSnippet;
     // we use a try catch here because otherwise highlight might break the render
     try {
-      codeSnippet = highlightAuto(codeSnippet, [language]).value;
+      codeSnippet = highlightAuto(codeSnippet, [language.toLowerCase()]).value;
     } catch (e) {}
 
     return (
@@ -228,7 +229,7 @@ class CodeExporter extends Component {
               {snippets
                 .filter(snippet => snippet.language === language)
                 .map(snippet => snippet.name)
-                .sort((a, b) => a > b || -1)
+                .sort((a, b) => a.toLowerCase() > b.toLowerCase() || -1)
                 .map(snippetName => (
                   <li onClick={() => this.setSnippet(snippetName)}>
                     {snippetName}
@@ -236,35 +237,39 @@ class CodeExporter extends Component {
                 ))}
             </GraphiQL.Menu>
           </div>
-          <div style={{padding: '0px 11px 10px'}}>
-            <div
-              style={{
-                fontWeight: 700,
-                color: 'rgb(177, 26, 4)',
-                fontVariant: 'small-caps',
-                textTransform: 'lowercase',
-              }}>
-              Options
+          {snippet.options.length > 0 ? (
+            <div style={{padding: '0px 11px 10px'}}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  color: 'rgb(177, 26, 4)',
+                  fontVariant: 'small-caps',
+                  textTransform: 'lowercase',
+                }}>
+                Options
+              </div>
+              {Object.keys(options)
+                .sort((a, b) => a > b || -1)
+                .map(optionId => (
+                  <div key={optionId}>
+                    <input
+                      id={optionId}
+                      type="checkbox"
+                      style={{position: 'relative', top: -1}}
+                      value={options[optionId].value}
+                      onChange={() =>
+                        this.setOption(optionId, !options[optionId].value)
+                      }
+                    />
+                    <label for={optionId} style={{paddingLeft: 5}}>
+                      {options[optionId].label}
+                    </label>
+                  </div>
+                ))}
             </div>
-            {Object.keys(options)
-              .sort((a, b) => a > b || -1)
-              .map(optionId => (
-                <div key={optionId}>
-                  <input
-                    id={optionId}
-                    type="checkbox"
-                    style={{position: 'relative', top: -1}}
-                    value={options[optionId].value}
-                    onChange={() =>
-                      this.setOption(optionId, !options[optionId].value)
-                    }
-                  />
-                  <label for={optionId} style={{paddingLeft: 5}}>
-                    {options[optionId].label}
-                  </label>
-                </div>
-              ))}
-          </div>
+          ) : (
+            <div style={{minHeight: 8}} />
+          )}
         </div>
         <Tooltip
           title="Copied!"
