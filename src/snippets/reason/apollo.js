@@ -1,6 +1,6 @@
-import refmt from 'reason'
+import refmt from 'reason';
 
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter'
+import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
   language: 'ReasonML',
@@ -20,8 +20,8 @@ export default {
     operation,
     options,
   }) => {
-    const queryName = capitalizeFirstLetter(operationName)
-    const componentName = queryName + capitalizeFirstLetter(operationType)
+    const queryName = capitalizeFirstLetter(operationName);
+    const componentName = queryName + capitalizeFirstLetter(operationType);
 
     const apolloClient = options.client
       ? `
@@ -35,7 +35,7 @@ export default {
     let instance =
       ReasonApollo.createApolloClient(~link=httpLink, ~cache=inMemoryCache, ());
       `
-      : ''
+      : '';
 
     return refmt.printRE(
       refmt.parseRE(`   
@@ -68,7 +68,7 @@ let make = _children => {
     </${componentName}>
     ${options.client ? '</ReasonApollo.Provider>' : ''}
   }
-};`)
-    )
+};`),
+    );
   },
-}
+};

@@ -1,12 +1,12 @@
-import formatJavaScript from '../utils/formatJavaScript'
-import commentsFactory from '../utils/commentsFactory'
+import formatJavaScript from '../../utils/formatJavaScript';
+import commentsFactory from '../../utils/commentsFactory';
 
 const comments = {
   nodeFetch: `Node doesn't implement fetch so we have to import it`,
   graphqlError: `handle OneGraph errors`,
   graphqlData: `do something with data`,
   fetchError: `handle fetch error`,
-}
+};
 
 export default {
   language: 'JavaScript',
@@ -36,18 +36,18 @@ export default {
     operation,
     options,
   }) => {
-    const getComment = commentsFactory(options.comments, comments)
+    const getComment = commentsFactory(options.comments, comments);
 
-    const serverComment = options.server ? getComment('nodeFetch') : ''
+    const serverComment = options.server ? getComment('nodeFetch') : '';
     const serverImport = options.server
       ? `import fetch from "node-fetch"\n`
-      : ''
+      : '';
 
     const graphqlQuery = `const ${variableName} = \`
-  ${operation}\``
-    const urlVariable = `const serverUrl = "${serverUrl}"`
+  ${operation}\``;
+    const urlVariable = `const serverUrl = "${serverUrl}"`;
 
-    let fetchBody
+    let fetchBody;
     if (options.asyncAwait) {
       fetchBody = `
 const res = await fetch(serverUrl, {
@@ -63,7 +63,7 @@ if (errors) {
 
 ${getComment('graphqlData')}
 console.log(data)
-`
+`;
     } else {
       fetchBody = `fetch(serverUrl, {
     method: 'POST',
@@ -83,7 +83,7 @@ console.log(data)
       ${getComment('fetchError')}
       console.error(err)
     })
-  `
+  `;
     }
 
     const snippet = `
@@ -93,8 +93,8 @@ ${graphqlQuery}
 
 ${urlVariable}
 
-${fetchBody}`
+${fetchBody}`;
 
-    return formatJavaScript(snippet)
+    return formatJavaScript(snippet);
   },
-}
+};

@@ -1,5 +1,5 @@
-import formatJavaScript from '../utils/formatJavaScript';
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter';
+import formatJavaScript from '../../utils/formatJavaScript';
+import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
   language: 'JavaScript',

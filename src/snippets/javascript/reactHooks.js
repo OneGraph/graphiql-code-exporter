@@ -1,6 +1,6 @@
-import formatJavaScript from '../utils/formatJavaScript';
-import commentsFactory from '../utils/commentsFactory';
-import capitalizeFirstLetter from '../utils/capitalizeFirstLetter';
+import formatJavaScript from '../../utils/formatJavaScript';
+import commentsFactory from '../../utils/commentsFactory';
+import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 const comments = {
   effectEmptyArray: `empty array to only fetch on did mount\n`,

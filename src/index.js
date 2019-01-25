@@ -1,2 +1,2 @@
-import CodeExporter from './CodeExporter'
-export default CodeExporter
+import CodeExporter from './CodeExporter';
+export default CodeExporter;
