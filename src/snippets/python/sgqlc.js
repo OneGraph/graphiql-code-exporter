@@ -1,6 +1,7 @@
 export default {
   name: 'sgqlc',
   language: 'Python',
+  prismLanguage: 'python',
   options: [],
   generate: ({serverUrl, operation}) => `
 from sgqlc.endpoint.http import HTTPEndpoint

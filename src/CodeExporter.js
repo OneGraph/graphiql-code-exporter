@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import {Button, Icon, Tooltip} from 'antd';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql/language';
-import {highlightAuto, registerLanguage} from 'highlight.js/lib/highlight';
+import Prism from 'prismjs';
 
 // TODO: can we use plain graphiql nodes or do we need @onegraph?
 import GraphiQL from '@onegraph/graphiql';
@@ -64,6 +64,7 @@ class CodeExporter extends Component {
     const snippet = initialSnippet || snippets[0];
 
     this.state = {
+      languages: [],
       showCopiedTooltip: false,
       options: getInitialOptions(snippet),
       snippet,
@@ -77,7 +78,7 @@ class CodeExporter extends Component {
     style.setAttribute('rel', 'stylesheet');
     style.setAttribute(
       'href',
-      '//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.13.1/styles/' +
+      'https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/' +
         this.props.theme +
         '.min.css',
     );
@@ -85,16 +86,19 @@ class CodeExporter extends Component {
     document.head.appendChild(style);
     this.style = style;
 
-    this.languages = [];
-    this.props.snippets.forEach(snippet => {
-      const lang = snippet.language.toLowerCase();
+    const langs = this.props.snippets.map(
+      snippet => snippet.prismLanguage || snippet.language.toLowerCase(),
+    );
 
-      if (this.languages.indexOf(lang) === -1) {
-        const langSupport = require('highlight.js/lib/languages/' + lang);
-        registerLanguage(lang, langSupport);
-        this.languages.push(lang);
+    langs.forEach(lang => {
+      if (this.state.languages.indexOf(lang) === -1) {
+        require('prismjs/components/prism-' + lang);
       }
     });
+
+    this.setState(prevState => ({
+      languages: [...prevState.languages, ...langs],
+    }));
   }
 
   componentWillUnmount() {
@@ -166,9 +170,7 @@ class CodeExporter extends Component {
       return null;
     }
 
-    const {name, language, generate} = snippet;
-
-    console.log(this.languages);
+    const {name, language, prismLanguage, generate} = snippet;
 
     const operationName = getOperationName(operation);
     const operationDisplayName = getOperationDisplayName(operation);
@@ -189,11 +191,12 @@ class CodeExporter extends Component {
     const rawSnippet = codeSnippet;
     // we use a try catch here because otherwise highlight might break the render
     try {
-      codeSnippet = highlightAuto(codeSnippet, [language.toLowerCase()]).value;
+      const lang = prismLanguage || language.toLowerCase();
+      codeSnippet = Prism.highlight(codeSnippet, Prism.languages[lang], lang);
     } catch (e) {}
 
     return (
-      <div>
+      <div style={{minWidth: 410}}>
         <div
           style={{
             fontFamily:
@@ -280,7 +283,7 @@ class CodeExporter extends Component {
               fontSize: '1.2em',
               padding: 0,
               position: 'absolute',
-              left: 350,
+              left: 280,
               marginTop: -20,
               width: 40,
               height: 40,
@@ -302,8 +305,8 @@ class CodeExporter extends Component {
           </Button>
         </Tooltip>
         <pre
-          className="hljs"
           style={{
+            borderTop: '1px solid rgb(220, 220, 220)',
             padding: '15px 12px',
             margin: 0,
           }}>
@@ -330,7 +333,7 @@ class CodeExporter extends Component {
 export default function CodeExporterWrapper({
   query,
   serverUrl,
-  theme = 'github',
+  theme = 'prism',
   hideCodeExporter = () => {},
   snippets = defaultSnippets,
 }) {

@@ -10,6 +10,7 @@ const comments = {
 
 export default {
   language: 'JavaScript',
+  prismLanguage: 'javascript',
   name: 'fetch',
   options: [
     {

@@ -9,6 +9,7 @@ const comments = {
 export default {
   language: 'JavaScript',
   name: 'react-with-hooks',
+  prismLanguage: 'jsx',
   options: [
     {id: 'comments', label: 'show comments', initial: false},
     {id: 'reactNative', label: 'react-native', initial: false},

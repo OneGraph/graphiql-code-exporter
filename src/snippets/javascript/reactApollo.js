@@ -3,6 +3,7 @@ import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
   language: 'JavaScript',
+  prismLanguage: 'jsx',
   name: 'react-apollo',
   options: [
     {

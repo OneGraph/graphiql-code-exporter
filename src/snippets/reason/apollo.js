@@ -4,6 +4,7 @@ import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
   language: 'ReasonML',
+  prismLanguage: 'reason',
   name: 'reason-apollo',
   options: [
     {

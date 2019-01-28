@@ -1,7 +1,8 @@
-import refmt from 'reason'
+import refmt from 'reason';
 
 export default {
   language: 'ReasonML',
+  prismLanguage: 'reason',
   name: 'bs-fetch',
   options: [],
   generate: ({
@@ -37,7 +38,7 @@ Js.Promise.(
   )
   |> then_(Fetch.Response.json)
   |> then_(json => print_endline(json) |> resolve)
-);`)
-    )
+);`),
+    );
   },
-}
+};

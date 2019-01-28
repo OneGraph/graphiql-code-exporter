@@ -3,6 +3,7 @@ import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 export default {
   language: 'Ruby',
   name: 'graphql-client',
+  prismLanguage: 'ruby',
   options: [],
   generate: ({
     serverUrl,
