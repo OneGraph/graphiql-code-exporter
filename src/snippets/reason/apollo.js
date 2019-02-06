@@ -30,6 +30,7 @@ export default {
     let inMemoryCache = ApolloInMemoryCache.createInMemoryCache();
     
     let serverUrl = "${serverUrl}"
+    
     let httpLink =
       ApolloLinks.createHttpLink(~uri=serverUrl, ());
     

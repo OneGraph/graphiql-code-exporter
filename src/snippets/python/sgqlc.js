@@ -3,7 +3,7 @@ export default {
   language: 'Python',
   prismLanguage: 'python',
   options: [],
-  generate: ({serverUrl, operation}) => `
+  generate: ({serverUrl, headers, variables, operation}) => `
 from sgqlc.endpoint.http import HTTPEndpoint
 
 serverUrl = '${serverUrl}'
@@ -12,8 +12,8 @@ query = '''
 ${operation}
 '''
 
-endpoint = HTTPEndpoint(serverUrl, {})
-data = endpoint(query, {})
+endpoint = HTTPEndpoint(serverUrl, ${JSON.stringify(headers, null, 2)})
+data = endpoint(query, ${JSON.stringify(variables, null, 2)})
 
 print(data)
 `,

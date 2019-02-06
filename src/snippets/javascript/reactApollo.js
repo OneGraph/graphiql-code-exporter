@@ -18,22 +18,26 @@ export default {
   ],
   generate: ({
     serverUrl,
+    variables,
+    headers,
     variableName,
     operationType,
     operationName,
     operation,
     options,
   }) => {
-    const graphqlOperation = `const ${variableName} = \`
+    const graphqlOperation = `const ${variableName} = gql\`
 ${operation}\``;
 
     const element = options.reactNative ? 'View' : 'div';
+    const vars = JSON.stringify(variables, null, 2);
+    const heads = JSON.stringify(headers, null, 2);
 
     let component;
 
     if (operationType === 'query') {
       component = `
-<Query query={${variableName}}>
+<Query query={${variableName}} context={{ headers: ${heads} }} variables={${vars}}>
 {({ loading, error, data }) => {
   if (loading) return <${element}>Loading</${element}>
   if (error) return <${element}>Error</${element}>
@@ -49,13 +53,13 @@ ${operation}\``;
 
     if (operationType === 'mutation') {
       component = `
-    <Mutation mutation={${variableName}}>
+    <Mutation mutation={${variableName}} context={{ headers: ${heads} }}>
     {(${operationName}, { loading, error, data }) => {
       if (loading) return <${element}>Loading</${element}>
       if (error) return <${element}>Error</${element}>
     
       // call ${operationName}() to run the mutation
-      return <button onClick={${operationName}}>Mutate</button>
+      return <button onClick={() => ${operationName}({ variables: ${vars} })}>Mutate</button>
     }}
     </Mutation>`;
     }
@@ -79,11 +83,12 @@ link: new HttpLink({
       ? 'import { View } from "react-native"'
       : '';
     const clientImports = options.client
-      ? `import { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'`
+      ? `\nimport { ApolloClient, InMemoryCache, HttpLink } from 'apollo-boost'`
       : '';
+    const gqlImport = 'import gql from "graphql-tag"';
 
     const snippet = `
-${clientImports}
+${gqlImport}${clientImports}
 ${reactImports}
 ${reactNativeImports}
 

@@ -16,6 +16,8 @@ export default {
   ],
   generate: ({
     serverUrl,
+    headers,
+    variables,
     variableName,
     operationType,
     operationName,
@@ -32,13 +34,16 @@ export default {
       : '';
 
     const graphqlQuery = `const ${variableName} = \`
-  ${operation}\``;
+${operation}\``;
 
     const urlVariable = `const serverUrl = "${serverUrl}"`;
+    const vars = JSON.stringify(variables, null, 2);
+    const heads = JSON.stringify(headers, null, 2);
 
     const fetchBody = `fetch(serverUrl, {
     method: 'POST',
-    body: JSON.stringify({ query: ${variableName} }),
+    headers: ${heads},
+    body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
   })
     .then(res => res.json())
     .then(({ data, errors }) => {

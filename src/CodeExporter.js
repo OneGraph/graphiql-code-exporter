@@ -42,6 +42,17 @@ const getOperations = query => {
   return operations;
 };
 
+const getUsedVariables = (variables, operation) => {
+  return operation.variableDefinitions.reduce((usedVariables, variable) => {
+    const variableName = variable.variable.name.value;
+    if (variables[variableName]) {
+      usedVariables[variableName] = variables[variableName];
+    }
+
+    return usedVariables;
+  }, {});
+};
+
 const getOperationName = operation =>
   operation.name ? operation.name.value : operation.operation;
 
@@ -156,7 +167,7 @@ class CodeExporter extends Component {
     });
 
   render() {
-    const {serverUrl, snippets} = this.props;
+    const {serverUrl, snippets, variables = {}, headers = {}} = this.props;
     const {
       snippet,
       options,
@@ -174,13 +185,16 @@ class CodeExporter extends Component {
 
     const operationName = getOperationName(operation);
     const operationDisplayName = getOperationDisplayName(operation);
+    const usedVariables = getUsedVariables(variables, operation);
     const query = print(operation);
 
     let codeSnippet = generate({
       serverUrl,
+      headers,
       operation: query,
       operationType: operation.operation,
       variableName: formatVariableName(operationName),
+      variables: usedVariables,
       operationName,
       options: Object.keys(options).reduce((flags, id) => {
         flags[id] = options[id].value;
@@ -283,7 +297,7 @@ class CodeExporter extends Component {
               fontSize: '1.2em',
               padding: 0,
               position: 'absolute',
-              left: 280,
+              left: 340,
               marginTop: -20,
               width: 40,
               height: 40,
@@ -333,15 +347,24 @@ class CodeExporter extends Component {
 export default function CodeExporterWrapper({
   query,
   serverUrl,
+  variables,
+  headers = {},
   theme = 'prism',
   hideCodeExporter = () => {},
   snippets = defaultSnippets,
 }) {
+  let jsonVariables = {};
+
+  try {
+    jsonVariables = JSON.parse(variables);
+  } catch (e) {}
+
   return (
     <div
       className="historyPaneWrap"
       style={{
         width: 440,
+        minWidth: 440,
         zIndex: 7,
       }}>
       <div className="history-title-bar">
@@ -360,6 +383,8 @@ export default function CodeExporterWrapper({
           serverUrl={serverUrl}
           snippets={snippets}
           theme={theme}
+          headers={headers}
+          variables={jsonVariables}
         />
       </div>
     </div>
