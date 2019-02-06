@@ -1,0 +1,365 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct mutation snippet 1`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Mutation } from \\"react-apollo\\"
+
+const TEST_MUTATION = gql\`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+function TestMutation() {
+  return (
+    <Mutation
+      mutation={TEST_MUTATION}
+      context={{ headers: {} }}
+    >
+      {(testMutation, { loading, error, data }) => {
+        if (loading) return <div>Loading</div>
+        if (error) return <div>Error</div>
+
+        // call testMutation() to run the mutation
+        return (
+          <button
+            onClick={() =>
+              testMutation({ variables: {} })
+            }
+          >
+            Mutate
+          </button>
+        )
+      }}
+    </Mutation>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct mutation snippet 2`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Mutation } from \\"react-apollo\\"
+
+const TEST_MUTATION = gql\`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+function TestMutation() {
+  return (
+    <Mutation
+      mutation={TEST_MUTATION}
+      context={{ headers: {} }}
+    >
+      {(testMutation, { loading, error, data }) => {
+        if (loading) return <div>Loading</div>
+        if (error) return <div>Error</div>
+
+        // call testMutation() to run the mutation
+        return (
+          <button
+            onClick={() =>
+              testMutation({ variables: {} })
+            }
+          >
+            Mutate
+          </button>
+        )
+      }}
+    </Mutation>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct mutation snippet 3`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Mutation } from \\"react-apollo\\"
+import { View } from \\"react-native\\"
+
+const TEST_MUTATION = gql\`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+function TestMutation() {
+  return (
+    <Mutation
+      mutation={TEST_MUTATION}
+      context={{ headers: {} }}
+    >
+      {(testMutation, { loading, error, data }) => {
+        if (loading) return <View>Loading</View>
+        if (error) return <View>Error</View>
+
+        // call testMutation() to run the mutation
+        return (
+          <button
+            onClick={() =>
+              testMutation({ variables: {} })
+            }
+          >
+            Mutate
+          </button>
+        )
+      }}
+    </Mutation>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct mutation snippet 4`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Mutation } from \\"react-apollo\\"
+import { View } from \\"react-native\\"
+
+const TEST_MUTATION = gql\`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+function TestMutation() {
+  return (
+    <Mutation
+      mutation={TEST_MUTATION}
+      context={{ headers: {} }}
+    >
+      {(testMutation, { loading, error, data }) => {
+        if (loading) return <View>Loading</View>
+        if (error) return <View>Error</View>
+
+        // call testMutation() to run the mutation
+        return (
+          <button
+            onClick={() =>
+              testMutation({ variables: {} })
+            }
+          >
+            Mutate
+          </button>
+        )
+      }}
+    </Mutation>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct query snippet 1`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Query } from \\"react-apollo\\"
+
+const TEST_QUERY = gql\`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+function TestQuery() {
+  return (
+    <Query
+      query={TEST_QUERY}
+      context={{ headers: {} }}
+      variables={{}}
+    >
+      {({ loading, error, data }) => {
+        if (loading) return <div>Loading</div>
+        if (error) return <div>Error</div>
+
+        if (data) {
+          return (
+            <div>{JSON.stringify(data, null, 2)}</div>
+          )
+        }
+      }}
+    </Query>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct query snippet 2`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Query } from \\"react-apollo\\"
+
+const TEST_QUERY = gql\`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+function TestQuery() {
+  return (
+    <Query
+      query={TEST_QUERY}
+      context={{ headers: {} }}
+      variables={{}}
+    >
+      {({ loading, error, data }) => {
+        if (loading) return <div>Loading</div>
+        if (error) return <div>Error</div>
+
+        if (data) {
+          return (
+            <div>{JSON.stringify(data, null, 2)}</div>
+          )
+        }
+      }}
+    </Query>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct query snippet 3`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Query } from \\"react-apollo\\"
+import { View } from \\"react-native\\"
+
+const TEST_QUERY = gql\`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+function TestQuery() {
+  return (
+    <Query
+      query={TEST_QUERY}
+      context={{ headers: {} }}
+      variables={{}}
+    >
+      {({ loading, error, data }) => {
+        if (loading) return <View>Loading</View>
+        if (error) return <View>Error</View>
+
+        if (data) {
+          return (
+            <View>
+              {JSON.stringify(data, null, 2)}
+            </View>
+          )
+        }
+      }}
+    </Query>
+  )
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-apollo snippet should generate the correct query snippet 4`] = `
+Object {
+  "options": Object {
+    "client": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import gql from \\"graphql-tag\\"
+import { Query } from \\"react-apollo\\"
+import { View } from \\"react-native\\"
+
+const TEST_QUERY = gql\`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+function TestQuery() {
+  return (
+    <Query
+      query={TEST_QUERY}
+      context={{ headers: {} }}
+      variables={{}}
+    >
+      {({ loading, error, data }) => {
+        if (loading) return <View>Loading</View>
+        if (error) return <View>Error</View>
+
+        if (data) {
+          return (
+            <View>
+              {JSON.stringify(data, null, 2)}
+            </View>
+          )
+        }
+      }}
+    </Query>
+  )
+}
+",
+}
+`;

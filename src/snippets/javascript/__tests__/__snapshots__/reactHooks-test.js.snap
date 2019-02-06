@@ -1,0 +1,465 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct mutation snippet 1`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestMutation() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_MUTATION,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div>Loading</div>
+  if (errors.length > 0)
+    return <div>{JSON.stringify(errors)}</div>
+
+  return <div>{JSON.stringify(data, null, 2)}</div>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct mutation snippet 2`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestMutation() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_MUTATION,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div>Loading</div>
+  if (errors.length > 0)
+    return <div>{JSON.stringify(errors)}</div>
+
+  return <div>{JSON.stringify(data, null, 2)}</div>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct mutation snippet 3`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+import { View } from \\"react-native\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestMutation() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_MUTATION,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <View>Loading</View>
+  if (errors.length > 0)
+    return <View>{JSON.stringify(errors)}</View>
+
+  return <View>{JSON.stringify(data, null, 2)}</View>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct mutation snippet 4`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+import { View } from \\"react-native\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestMutation() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_MUTATION,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <View>Loading</View>
+  if (errors.length > 0)
+    return <View>{JSON.stringify(errors)}</View>
+
+  return <View>{JSON.stringify(data, null, 2)}</View>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct query snippet 1`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestQuery() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_QUERY,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div>Loading</div>
+  if (errors.length > 0)
+    return <div>{JSON.stringify(errors)}</div>
+
+  return <div>{JSON.stringify(data, null, 2)}</div>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct query snippet 2`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": false,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestQuery() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_QUERY,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div>Loading</div>
+  if (errors.length > 0)
+    return <div>{JSON.stringify(errors)}</div>
+
+  return <div>{JSON.stringify(data, null, 2)}</div>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct query snippet 3`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+import { View } from \\"react-native\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestQuery() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_QUERY,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <View>Loading</View>
+  if (errors.length > 0)
+    return <View>{JSON.stringify(errors)}</View>
+
+  return <View>{JSON.stringify(data, null, 2)}</View>
+}
+",
+}
+`;
+
+exports[`Generating a JavaScript:react-hooks snippet should generate the correct query snippet 4`] = `
+Object {
+  "options": Object {
+    "comments": false,
+    "reactNative": true,
+  },
+  "snippet": "
+import React, { useState, useEffect } from \\"react\\"
+import { View } from \\"react-native\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+function TestQuery() {
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState([])
+  const [data, setData] = useState(null)
+
+  useEffect(() => {
+    setLoading(true)
+
+    fetch(serverUrl, {
+      method: \\"POST\\",
+      headers: {},
+      body: JSON.stringify({
+        query: TEST_QUERY,
+        variables: {}
+      })
+    })
+      .then(res => res.json())
+      .then(({ data, errors }) => {
+        if (errors) {
+          setErrors(errors)
+        }
+
+        setData(data)
+      })
+      .catch(err => setErrors([err]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <View>Loading</View>
+  if (errors.length > 0)
+    return <View>{JSON.stringify(errors)}</View>
+
+  return <View>{JSON.stringify(data, null, 2)}</View>
+}
+",
+}
+`;

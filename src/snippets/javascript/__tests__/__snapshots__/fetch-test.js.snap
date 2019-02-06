@@ -1,0 +1,673 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 1`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": false,
+    "server": false,
+  },
+  "snippet": "
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      console.error(errors)
+    }
+
+    console.log(data)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 2`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": false,
+    "server": false,
+  },
+  "snippet": "
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  console.error(errors)
+}
+
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 3`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": false,
+    "server": true,
+  },
+  "snippet": "
+import fetch from \\"node-fetch\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      console.error(errors)
+    }
+
+    console.log(data)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 4`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": false,
+    "server": true,
+  },
+  "snippet": "
+import fetch from \\"node-fetch\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  console.error(errors)
+}
+
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 5`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": true,
+    "server": false,
+  },
+  "snippet": "
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      // handle OneGraph errors
+      console.error(errors)
+    }
+
+    // do something with data
+    console.log(data)
+  })
+  .catch(err => {
+    // handle fetch error
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 6`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": true,
+    "server": false,
+  },
+  "snippet": "
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  // handle OneGraph errors
+  console.error(errors)
+}
+
+// do something with data
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 7`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": true,
+    "server": true,
+  },
+  "snippet": "
+// Node doesn't implement fetch so we have to import it
+import fetch from \\"node-fetch\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      // handle OneGraph errors
+      console.error(errors)
+    }
+
+    // do something with data
+    console.log(data)
+  })
+  .catch(err => {
+    // handle fetch error
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct mutation snippet 8`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": true,
+    "server": true,
+  },
+  "snippet": "
+// Node doesn't implement fetch so we have to import it
+import fetch from \\"node-fetch\\"
+
+const TEST_MUTATION = \`
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_MUTATION,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  // handle OneGraph errors
+  console.error(errors)
+}
+
+// do something with data
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 1`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": false,
+    "server": false,
+  },
+  "snippet": "
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      console.error(errors)
+    }
+
+    console.log(data)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 2`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": false,
+    "server": false,
+  },
+  "snippet": "
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  console.error(errors)
+}
+
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 3`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": false,
+    "server": true,
+  },
+  "snippet": "
+import fetch from \\"node-fetch\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      console.error(errors)
+    }
+
+    console.log(data)
+  })
+  .catch(err => {
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 4`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": false,
+    "server": true,
+  },
+  "snippet": "
+import fetch from \\"node-fetch\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  console.error(errors)
+}
+
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 5`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": true,
+    "server": false,
+  },
+  "snippet": "
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      // handle OneGraph errors
+      console.error(errors)
+    }
+
+    // do something with data
+    console.log(data)
+  })
+  .catch(err => {
+    // handle fetch error
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 6`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": true,
+    "server": false,
+  },
+  "snippet": "
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  // handle OneGraph errors
+  console.error(errors)
+}
+
+// do something with data
+console.log(data)
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 7`] = `
+Object {
+  "options": Object {
+    "asyncAwait": false,
+    "comments": true,
+    "server": true,
+  },
+  "snippet": "
+// Node doesn't implement fetch so we have to import it
+import fetch from \\"node-fetch\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+  .then(res => res.json())
+  .then(({ data, errors }) => {
+    if (errors) {
+      // handle OneGraph errors
+      console.error(errors)
+    }
+
+    // do something with data
+    console.log(data)
+  })
+  .catch(err => {
+    // handle fetch error
+    console.error(err)
+  })
+",
+}
+`;
+
+exports[`Generating a JavaScript:fetch snippet should generate the correct query snippet 8`] = `
+Object {
+  "options": Object {
+    "asyncAwait": true,
+    "comments": true,
+    "server": true,
+  },
+  "snippet": "
+// Node doesn't implement fetch so we have to import it
+import fetch from \\"node-fetch\\"
+
+const TEST_QUERY = \`
+
+query testQuery {
+  someData {
+    id
+  }
+}
+\`
+
+const serverUrl = \\"https://api.myservice.com/\\"
+
+const res = await fetch(serverUrl, {
+  method: \\"POST\\",
+  headers: {},
+  body: JSON.stringify({
+    query: TEST_QUERY,
+    variables: {}
+  })
+})
+const { errors, data } = await res.json()
+
+if (errors) {
+  // handle OneGraph errors
+  console.error(errors)
+}
+
+// do something with data
+console.log(data)
+",
+}
+`;

@@ -1,0 +1,54 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Generating a Python:react-apollo snippet should generate the correct mutation snippet 1`] = `
+Object {
+  "options": Object {},
+  "snippet": "
+
+from sgqlc.endpoint.http import HTTPEndpoint
+
+serverUrl = 'https://api.myservice.com/'
+
+query = '''
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}
+'''
+
+endpoint = HTTPEndpoint(serverUrl, undefined)
+data = endpoint(query, undefined)
+
+print(data)
+",
+}
+`;
+
+exports[`Generating a Python:react-apollo snippet should generate the correct query snippet 1`] = `
+Object {
+  "options": Object {},
+  "snippet": "
+
+from sgqlc.endpoint.http import HTTPEndpoint
+
+serverUrl = 'https://api.myservice.com/'
+
+query = '''
+
+query testQuery {
+  someData {
+    id
+  }
+}
+
+'''
+
+endpoint = HTTPEndpoint(serverUrl, undefined)
+data = endpoint(query, undefined)
+
+print(data)
+",
+}
+`;

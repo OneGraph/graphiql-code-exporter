@@ -1,0 +1,151 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Generating a ReasonML:react-hooks snippet should generate the correct mutation snippet 1`] = `
+Object {
+  "options": Object {
+    "client": false,
+  },
+  "snippet": "
+module TestMutation = [%graphql
+  {|
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}
+|}
+];
+
+module TestMutationMutation = ReasonApollo.CreateQuery(TestMutation);
+
+let make = _children => {
+  render: _ =>
+    <TestMutationMutation>
+      ...{
+           ({result}) =>
+             switch (result) {
+             | Loading => <div> {ReasonReact.string(\\"Loading\\")} </div>
+             | Error(error) =>
+               <div> {ReasonReact.string(error##message)} </div>
+             | Data(response) => <div> {/* Handle response */} </div>
+             }
+         }
+    </TestMutationMutation>,
+};
+",
+}
+`;
+
+exports[`Generating a ReasonML:react-hooks snippet should generate the correct mutation snippet 2`] = `
+Object {
+  "options": Object {
+    "client": false,
+  },
+  "snippet": "
+module TestMutation = [%graphql
+  {|
+
+mutation testMutation {
+  addData(id: \\"id\\") {
+    id
+  }
+}
+|}
+];
+
+module TestMutationMutation = ReasonApollo.CreateQuery(TestMutation);
+
+let make = _children => {
+  render: _ =>
+    <TestMutationMutation>
+      ...{
+           ({result}) =>
+             switch (result) {
+             | Loading => <div> {ReasonReact.string(\\"Loading\\")} </div>
+             | Error(error) =>
+               <div> {ReasonReact.string(error##message)} </div>
+             | Data(response) => <div> {/* Handle response */} </div>
+             }
+         }
+    </TestMutationMutation>,
+};
+",
+}
+`;
+
+exports[`Generating a ReasonML:react-hooks snippet should generate the correct query snippet 1`] = `
+Object {
+  "options": Object {
+    "client": false,
+  },
+  "snippet": "
+module TestQuery = [%graphql
+  {|
+
+query testQuery {
+  someData {
+    id
+  }
+}
+
+|}
+];
+
+module TestQueryQuery = ReasonApollo.CreateQuery(TestQuery);
+
+let make = _children => {
+  render: _ =>
+    <TestQueryQuery>
+      ...{
+           ({result}) =>
+             switch (result) {
+             | Loading => <div> {ReasonReact.string(\\"Loading\\")} </div>
+             | Error(error) =>
+               <div> {ReasonReact.string(error##message)} </div>
+             | Data(response) => <div> {/* Handle response */} </div>
+             }
+         }
+    </TestQueryQuery>,
+};
+",
+}
+`;
+
+exports[`Generating a ReasonML:react-hooks snippet should generate the correct query snippet 2`] = `
+Object {
+  "options": Object {
+    "client": false,
+  },
+  "snippet": "
+module TestQuery = [%graphql
+  {|
+
+query testQuery {
+  someData {
+    id
+  }
+}
+
+|}
+];
+
+module TestQueryQuery = ReasonApollo.CreateQuery(TestQuery);
+
+let make = _children => {
+  render: _ =>
+    <TestQueryQuery>
+      ...{
+           ({result}) =>
+             switch (result) {
+             | Loading => <div> {ReasonReact.string(\\"Loading\\")} </div>
+             | Error(error) =>
+               <div> {ReasonReact.string(error##message)} </div>
+             | Data(response) => <div> {/* Handle response */} </div>
+             }
+         }
+    </TestQueryQuery>,
+};
+",
+}
+`;
