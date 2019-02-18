@@ -63,6 +63,12 @@ export default class GraphiQLWithCodeExporter extends Component {
         hideCodeExporter={this.toggleCodeExporter}
         snippets={snippets}
         serverUrl={serverUrl}
+        context={{
+          appId: /* APP_ID */
+        }}
+        headers={{
+          Authorization: 'Bearer ' + /* AUTH_TOKEN */
+        }}
         query={query}
       />
     ) : null
@@ -87,34 +93,48 @@ export default class GraphiQLWithCodeExporter extends Component {
 
 ## Props
 
-| Property         | Type          | Description                                                                                                                                                 |
-| ---------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| hideCodeExporter | _(Function)_  | A callback function that is called when clicking the close (x) button in the upper right corner of the panel.                                               |
-| serverUrl        | _(URI)_       | The server url for your GraphQL endpoint.                                                                                                                   |
-| query            | _(string)_    | A string containing the GraphQL query that is synced with the GraphiQL query editor.                                                                        |
-| snippets         | _(Snippet[])_ | A list of snippet objects that one can choose from to generate code snippets.                                                                               |
-| theme            | _(string)_    | The name of the [prism.js theme](https://prismjs.com/#basic-usage) in lower case and with '-' instead of spaces e.g. `solarized-light`. Defaults to `prism` |
+| Property         | Type        | Description                                                                                                                                                 |
+| ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hideCodeExporter | _Function_  | A callback function that is called when clicking the close (x) button in the upper right corner of the panel.                                               |
+| serverUrl        | _URI_       | The server url for your GraphQL endpoint.                                                                                                                   |
+| query            | _string_    | A string containing the GraphQL query that is synced with the GraphiQL query editor.                                                                        |
+| snippets         | _Snippet[]_ | A list of snippet objects that one can choose from to generate code snippets.                                                                               |
+| headers          | _Object?_   |  An optional object containing app specific HTTP headers                                                                                                    |
+| context          | _Object?_   |  An optional object containing any additional keys required to render app specific snippets                                                                 |
+| theme            | _string_    | The name of the [prism.js theme](https://prismjs.com/#basic-usage) in lower case and with '-' instead of spaces e.g. `solarized-light`. Defaults to `prism` |
 
 ## Snippets
 
 What we call **snippet** here, is actually an object with 4 required keys.
 
-| Key           | Type         | Description                                                                                                                                                  |
-| ------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name          | _(string)_   | A name that is used to identify the snippet.                                                                                                                 |
-| language      | _(string)_   | A language string that is used to group the snippets by language.                                                                                            |
-| prismLanguage | _(string?)_  | A valid [Prism language](https://prismjs.com/#languages-list) used for syntax highlighting. It defaults to the lower-cased `language` if none is provided.   |
-| options       | _(Option[])_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false. |
-| generate      | _(Function)_ | A function that returns the generated code as a single string. It receives below listed arguments as an object.                                              |
+| Key           | Type       | Description                                                                                                                                                  |
+| ------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| name          | _string_   | A name that is used to identify the snippet.                                                                                                                 |
+| language      | _string_   | A language string that is used to group the snippets by language.                                                                                            |
+| prismLanguage | _string?_  | A valid [Prism language](https://prismjs.com/#languages-list) used for syntax highlighting. It defaults to the lower-cased `language` if none is provided.   |
+| options       | _Option[]_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false. |
+| generate      | _Function_ | A function that returns the generated code as a single string. It receives below listed data as an object.                                                   |
 
-#### Arguments
+#### Snippet Data
 
-1. `serverUrl` (_string_): The passed GraphQL server url
-2. `operationName` (_string_): The selected GraphQL operation name
-3. `operationType` (_"query" | "mutation"_): The selected operation's type
-4. `variableName` (_string_): The operation name but in UPPER_CASE as that's the common way to declare GraphQL operations in JavaScript
-5. `operation` (_string_): The selected operation as a query string
-6. `options` (_Object_): A map of option-boolean pairs providing whether an option is selected or not
+| Key        | Type          |  Description                                                                            |
+| ---------- | ------------- | --------------------------------------------------------------------------------------- |
+| serverUrl  | _string_      | The passed GraphQL server url                                                           |
+| operations | _Operation[]_ | A list of GraphQL operations where each operation has the [operation](#operation) keys. |
+| options    | *Object*      | A map of option-boolean pairs providing whether an option is selected or not            |
+| headers    | _Object?_     | The `headers` object that is passed to the CodeExporter component                       |
+| context    | _Object?_     | The `context` object that is passed to the CodeExporter component                       |
+
+##### Operation
+
+| Key          |  Type                   | Description                                                                                               |
+| ------------ | ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| name         | _string_                | The selected GraphQL operation name                                                                       |
+| type         | _"query" \| "mutation"_ | The selected operation's type                                                                             |
+| query        |  *string*               |  A formatted string containing the GraphQL operation                                                      |   |
+| variableName | _string_                | The operation name but in UPPER_CASE as that's the common way to declare GraphQL operations in JavaScript |
+| operation    | _Object_                | The plain GraphQL parser result for this operation                                                        |
+| variables    | _Object_                |  A map of all used variables for this specific operation                                                  |
 
 #### Example
 
@@ -133,7 +153,10 @@ const fetchSnippet = {
       initial: false,
     },
   ],
-  generate: ({serverUrl, operation, options}) => {
+  generate: ({serverUrl, operations, options}) => {
+    // we only render the first operation here
+    const {query} = operations[0];
+
     const serverImport = options.server
       ? 'import { fetch } from "node-fetch"'
       : '';
@@ -143,7 +166,7 @@ ${serverImport}
 
 const res = await fetch("${serverUrl}", {
   method: 'POST',
-  body: JSON.stringify({ query: \`${operation}\` }),
+  body: JSON.stringify({ query: \`${query}\` }),
 })
 const { errors, data } = await res.json()
 
