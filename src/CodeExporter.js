@@ -80,7 +80,6 @@ class CodeExporter extends Component {
       options: getInitialOptions(snippet),
       snippet,
       query: props.query,
-      operationIndex: 0,
     };
   }
 
@@ -121,12 +120,9 @@ class CodeExporter extends Component {
     const operations = getOperations(props.query).filter(
       op => op.operation !== 'subscription',
     );
-    const operation = operations[state.operationIndex] || operations[0];
 
     return {
       operations,
-      operation,
-      operationIndex: state.operationIndex,
       query: props.query,
     };
   }
@@ -167,35 +163,36 @@ class CodeExporter extends Component {
     });
 
   render() {
-    const {serverUrl, snippets, variables = {}, headers = {}} = this.props;
     const {
-      snippet,
-      options,
-      operations,
-      operation,
-      operationIndex,
-      showCopiedTooltip,
-    } = this.state;
+      serverUrl,
+      snippets,
+      context = {},
+      variables = {},
+      headers = {},
+    } = this.props;
+    const {snippet, options, operations, showCopiedTooltip} = this.state;
 
-    if (!operation || !snippet) {
+    if (!operations || operations.length === 0 || !snippet) {
       return null;
     }
 
     const {name, language, prismLanguage, generate} = snippet;
 
-    const operationName = getOperationName(operation);
-    const operationDisplayName = getOperationDisplayName(operation);
-    const usedVariables = getUsedVariables(variables, operation);
-    const query = print(operation);
+    const operationList = operations.map(operation => ({
+      query: print(operation),
+      name: getOperationName(operation),
+      displayName: getOperationDisplayName(operation),
+      type: operation.operation,
+      variableName: formatVariableName(getOperationName(operation)),
+      variables: getUsedVariables(variables, operation),
+      operation,
+    }));
 
     let codeSnippet = generate({
       serverUrl,
       headers,
-      operation: query,
-      operationType: operation.operation,
-      variableName: formatVariableName(operationName),
-      variables: usedVariables,
-      operationName,
+      context,
+      operations: operationList,
       options: Object.keys(options).reduce((flags, id) => {
         flags[id] = options[id].value;
         return flags;
@@ -216,23 +213,7 @@ class CodeExporter extends Component {
             fontFamily:
               'system, -apple-system, San Francisco, Helvetica Neue, arial, sans-serif',
           }}>
-          <div
-            style={{
-              padding: '10px 7px',
-              borderBottom: '1px solid rgb(220, 220, 220)',
-            }}>
-            <GraphiQL.Menu label={operationDisplayName} title="Operation">
-              {operations.map((op, index) => (
-                <li onClick={() => this.setState({operationIndex: index})}>
-                  {getOperationDisplayName(op)}
-                </li>
-              ))}
-            </GraphiQL.Menu>
-          </div>
-          <div
-            style={{
-              padding: '10px 7px 5px 7px',
-            }}>
+          <div style={{padding: '12px 7px 8px'}}>
             <GraphiQL.Menu label={language} title="Language">
               {snippets
                 .map(snippet => snippet.language)
@@ -348,6 +329,7 @@ export default function CodeExporterWrapper({
   query,
   serverUrl,
   variables,
+  context = {},
   headers = {},
   theme = 'prism',
   hideCodeExporter = () => {},
@@ -383,6 +365,7 @@ export default function CodeExporterWrapper({
           serverUrl={serverUrl}
           snippets={snippets}
           theme={theme}
+          context={context}
           headers={headers}
           variables={jsonVariables}
         />

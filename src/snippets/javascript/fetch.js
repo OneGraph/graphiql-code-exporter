@@ -29,16 +29,18 @@ export default {
       initial: false,
     },
   ],
-  generate: ({
-    serverUrl,
-    headers,
-    variables,
-    variableName,
-    operationType,
-    operationName,
-    operation,
-    options,
-  }) => {
+  generate: ({serverUrl, headers, operations, context, options}) => {
+    const {
+      variableName,
+      operationName,
+      operationDisplayName,
+      variables,
+      operation,
+      query,
+    } = operations[0];
+
+    console.log(operations);
+
     const getComment = commentsFactory(options.comments, comments);
 
     const serverComment = options.server ? getComment('nodeFetch') : '';
@@ -47,7 +49,7 @@ export default {
       : '';
 
     const graphqlQuery = `const ${variableName} = \`
-${operation}\``;
+${query}\``;
     const urlVariable = `const serverUrl = "${serverUrl}"`;
     const vars = JSON.stringify(variables, null, 2);
     const heads = JSON.stringify(headers, null, 2);
@@ -55,52 +57,52 @@ ${operation}\``;
     let fetchBody;
     if (options.asyncAwait) {
       fetchBody = `
-const res = await fetch(serverUrl, {
-  method: 'POST',
-  headers: ${heads},
-  body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
-})
-const { errors, data } = await res.json()
+    const res = await fetch(serverUrl, {
+      method: 'POST',
+      headers: ${heads},
+      body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
+    })
+    const { errors, data } = await res.json()
 
-if (errors) {
-  ${getComment('graphqlError')}
-  console.error(errors)
-}
+    if (errors) {
+      ${getComment('graphqlError')}
+      console.error(errors)
+    }
 
-${getComment('graphqlData')}
-console.log(data)
-`;
+    ${getComment('graphqlData')}
+    console.log(data)
+    `;
     } else {
       fetchBody = `fetch(serverUrl, {
-    method: 'POST',
-    headers: ${heads},
-    body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
-  })
-    .then(res => res.json())
-    .then(({ data, errors }) => {
-      if (errors) {
-        ${getComment('graphqlError')}
-        console.error(errors)
-      }
-  
-      ${getComment('graphqlData')}
-      console.log(data)
-    })
-    .catch(err => {
-      ${getComment('fetchError')}
-      console.error(err)
-    })
-  `;
+        method: 'POST',
+        headers: ${heads},
+        body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
+      })
+        .then(res => res.json())
+        .then(({ data, errors }) => {
+          if (errors) {
+            ${getComment('graphqlError')}
+            console.error(errors)
+          }
+
+          ${getComment('graphqlData')}
+          console.log(data)
+        })
+        .catch(err => {
+          ${getComment('fetchError')}
+          console.error(err)
+        })
+      `;
     }
 
     const snippet = `
-${serverComment}
-${serverImport}
-${graphqlQuery}
+    ${serverComment}
+    ${serverImport}
+    ${graphqlQuery}
 
-${urlVariable}
+    ${urlVariable}
 
-${fetchBody}`;
+    ${fetchBody}`;
 
     return formatJavaScript(snippet);
   },
