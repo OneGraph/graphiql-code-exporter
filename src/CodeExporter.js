@@ -43,14 +43,17 @@ const getOperations = query => {
 };
 
 const getUsedVariables = (variables, operation) => {
-  return operation.variableDefinitions.reduce((usedVariables, variable) => {
-    const variableName = variable.variable.name.value;
-    if (variables[variableName]) {
-      usedVariables[variableName] = variables[variableName];
-    }
+  return (operation.variableDefinitions || []).reduce(
+    (usedVariables, variable) => {
+      const variableName = variable.variable.name.value;
+      if (variables[variableName]) {
+        usedVariables[variableName] = variables[variableName];
+      }
 
-    return usedVariables;
-  }, {});
+      return usedVariables;
+    },
+    {},
+  );
 };
 
 const getOperationName = operation =>
@@ -151,8 +154,8 @@ class CodeExporter extends Component {
     });
   };
 
-  setOption = (id, value) =>
-    this.setState({
+  defaultSetOption = (id, value) => {
+    return this.setState({
       options: {
         ...this.state.options,
         [id]: {
@@ -161,6 +164,7 @@ class CodeExporter extends Component {
         },
       },
     });
+  };
 
   render() {
     const {
@@ -169,6 +173,7 @@ class CodeExporter extends Component {
       context = {},
       variables = {},
       headers = {},
+      setOption = this.defaultSetOption,
     } = this.props;
     const {snippet, options, operations, showCopiedTooltip} = this.state;
 
@@ -254,9 +259,9 @@ class CodeExporter extends Component {
                       id={optionId}
                       type="checkbox"
                       style={{position: 'relative', top: -1}}
-                      value={options[optionId].value}
+                      checked={options[optionId].value}
                       onChange={() =>
-                        this.setOption(optionId, !options[optionId].value)
+                        setOption(optionId, !options[optionId].value)
                       }
                     />
                     <label for={optionId} style={{paddingLeft: 5}}>
@@ -323,6 +328,27 @@ class CodeExporter extends Component {
   }
 }
 
+class ErrorBoundary extends React.Component<*, {hasError: boolean}> {
+  state = {hasError: false};
+
+  componentDidCatch(error, info) {
+    this.setState({hasError: true});
+    console.error('Error in component', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div>
+          Something went wrong on our side while generating a snippet, sorry
+          about that!
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // we borrow class names from graphiql's CSS as the visual appearance is the same
 // yet we might want to change that at some point in order to have a self-contained standalone
 export default function CodeExporterWrapper({
@@ -360,15 +386,17 @@ export default function CodeExporterWrapper({
       <div
         className="history-contents"
         style={{borderTop: '1px solid #d6d6d6'}}>
-        <CodeExporter
-          query={query}
-          serverUrl={serverUrl}
-          snippets={snippets}
-          theme={theme}
-          context={context}
-          headers={headers}
-          variables={jsonVariables}
-        />
+        <ErrorBoundary>
+          <CodeExporter
+            query={query}
+            serverUrl={serverUrl}
+            snippets={snippets}
+            theme={theme}
+            context={context}
+            headers={headers}
+            variables={jsonVariables}
+          />
+        </ErrorBoundary>
       </div>
     </div>
   );

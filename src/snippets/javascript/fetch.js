@@ -30,14 +30,7 @@ export default {
     },
   ],
   generate: ({serverUrl, headers, operations, context, options}) => {
-    const {
-      variableName,
-      operationName,
-      operationDisplayName,
-      variables,
-      operation,
-      query,
-    } = operations[0];
+    const {variableName, variables, query} = operations[0];
 
     console.log(operations);
 
