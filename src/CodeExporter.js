@@ -2,7 +2,7 @@
 
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
-import {parse, print} from 'graphql/language';
+import {parse, print} from 'graphql';
 import Prism from 'prismjs';
 
 // TODO: not sure if we should include all snippets by default
@@ -234,13 +234,6 @@ class CodeExporter extends Component<Props, State> {
     const langs: Array<string> = this.props.snippets.map(
       snippet => snippet.prismLanguage || snippet.language.toLowerCase(),
     );
-
-    langs.forEach(lang => {
-      if (this.state.languages.indexOf(lang) === -1) {
-        // $FlowFixMe: No dynamic requires (can have the snippet require this)
-        require('prismjs/components/prism-' + lang);
-      }
-    });
 
     this.setState(prevState => ({
       languages: [...prevState.languages, ...langs],
