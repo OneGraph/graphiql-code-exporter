@@ -3,10 +3,7 @@
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql';
-import Prism from 'prismjs';
-
-// TODO: not sure if we should include all snippets by default
-import defaultSnippets from './snippets';
+import CodeMirror from 'codemirror';
 
 import type {OperationDefinitionNode, VariableDefinitionNode} from 'graphql';
 
@@ -58,7 +55,7 @@ export type GenerateOptions = {
 export type Snippet = {
   options: Array<{id: string, label: string, initial?: boolean}>,
   language: string,
-  prismLanguage: ?string,
+  codeMirrorMode: string,
   name: string,
   generate: (options: GenerateOptions) => string,
 };
@@ -121,11 +118,13 @@ const getOperationDisplayName = operation =>
  * A menu style button to use within the Toolbar.
  * Copied from GraphiQL: https://github.com/graphql/graphiql/blob/272e2371fc7715217739efd7817ce6343cb4fbec/src/components/ToolbarMenu.js#L16-L80
  */
-export class ToolbarMenu extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {visible: false};
-  }
+export class ToolbarMenu extends Component<
+  {title: string, label: string, children: React$Node},
+  {visible: boolean},
+> {
+  state = {visible: false};
+  _node: ?HTMLAnchorElement;
+  _listener: ?(e: Event) => void;
 
   componentWillUnmount() {
     this._release();
@@ -136,7 +135,7 @@ export class ToolbarMenu extends Component {
     return (
       <a
         className="toolbar-menu toolbar-button"
-        onClick={this.handleOpen.bind(this)}
+        onClick={this.handleOpen}
         onMouseDown={e => e.preventDefault()}
         ref={node => {
           this._node = node;
@@ -167,7 +166,7 @@ export class ToolbarMenu extends Component {
     }
   }
 
-  handleClick(e) {
+  handleClick(e: Event) {
     if (this._node !== e.target) {
       e.preventDefault();
       this.setState({visible: false});
@@ -175,26 +174,57 @@ export class ToolbarMenu extends Component {
     }
   }
 
-  handleOpen = e => {
+  handleOpen = (e: Event) => {
     e.preventDefault();
     this.setState({visible: true});
     this._subscribe();
   };
 }
 
+type CodeDisplayProps = {code: string, mode: string, theme: ?string};
+
+class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
+  _node: ?HTMLDivElement;
+  editor: CodeMirror;
+  componentDidMount() {
+    this.editor = CodeMirror(this._node, {
+      value: this.props.code.trim(),
+      lineNumbers: false,
+      mode: this.props.mode,
+      readOnly: 'nocursor',
+      theme: this.props.theme,
+    });
+  }
+
+  componentDidUpdate(prevProps: CodeDisplayProps) {
+    if (this.props.code !== prevProps.code) {
+      this.editor.setValue(this.props.code);
+    }
+    if (this.props.mode !== prevProps.mode) {
+      this.editor.setOption('mode', this.props.mode);
+    }
+    if (this.props.theme !== prevProps.theme) {
+      this.editor.setOption('theme', this.props.theme);
+    }
+  }
+
+  render() {
+    return <div ref={ref => (this._node = ref)} />;
+  }
+}
+
 type Props = {|
   initialSnippet: Snippet,
   snippets: Array<Snippet>,
   query: string,
-  theme: string,
   serverUrl: string,
-  context: Object, // XXX: fix
-  variables: Variables, // XXX: fix
+  context: Object,
+  variables: Variables,
   headers: {[name: string]: string},
   setOption?: (id: string, value: boolean) => void,
+  codeMirrorTheme: ?string,
 |};
 type State = {|
-  languages: Array<string>,
   showCopiedTooltip: boolean,
   options: Options,
   snippet: Snippet,
@@ -210,38 +240,11 @@ class CodeExporter extends Component<Props, State> {
     const {initialSnippet} = props;
 
     this.state = {
-      languages: [],
       showCopiedTooltip: false,
       options: getInitialOptions(initialSnippet),
       snippet: initialSnippet,
       query: props.query,
     };
-  }
-
-  componentDidMount() {
-    const style = document.createElement('link');
-    style.setAttribute('rel', 'stylesheet');
-    style.setAttribute(
-      'href',
-      'https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/' +
-        this.props.theme +
-        '.min.css',
-    );
-
-    document.head ? document.head.appendChild(style) : null;
-    this.style = style;
-
-    const langs: Array<string> = this.props.snippets.map(
-      snippet => snippet.prismLanguage || snippet.language.toLowerCase(),
-    );
-
-    this.setState(prevState => ({
-      languages: [...prevState.languages, ...langs],
-    }));
-  }
-
-  componentWillUnmount() {
-    this.style && this.style.remove();
   }
 
   static getDerivedStateFromProps(props: Props, state: State) {
@@ -310,7 +313,7 @@ class CodeExporter extends Component<Props, State> {
       return null;
     }
 
-    const {name, language, prismLanguage, generate} = snippet;
+    const {name, language, generate} = snippet;
 
     const operationList = operations.map(
       (operation: OperationDefinitionNode) => ({
@@ -335,15 +338,8 @@ class CodeExporter extends Component<Props, State> {
       }, {}),
     });
 
-    const rawSnippet = codeSnippet;
-    // we use a try catch here because otherwise highlight might break the render
-    try {
-      const lang = prismLanguage || language.toLowerCase();
-      codeSnippet = Prism.highlight(codeSnippet, Prism.languages[lang], lang);
-    } catch (e) {}
-
     return (
-      <div style={{minWidth: 410}}>
+      <div className="graphiql-code-exporter" style={{minWidth: 410}}>
         <div
           style={{
             fontFamily:
@@ -425,7 +421,7 @@ class CodeExporter extends Component<Props, State> {
           }}
           type="link"
           onClick={() => {
-            copy(rawSnippet);
+            copy(codeSnippet);
             this.setState({showCopiedTooltip: true}, () =>
               setTimeout(() => this.setState({showCopiedTooltip: false}), 450),
             );
@@ -451,26 +447,18 @@ class CodeExporter extends Component<Props, State> {
           </div>
           {copyIcon}
         </button>
-
-        <pre
+        <div
           style={{
-            borderTop: '1px solid rgb(220, 220, 220)',
             padding: '15px 12px',
             margin: 0,
+            borderTop: '1px solid rgb(220, 220, 220)',
           }}>
-          <code
-            style={{
-              fontFamily:
-                'Dank Monk, Fira Code, Hack, Consolas, Inconsolata, Droid Sans Mono, Monaco, monospace',
-              textRendering: 'optimizeLegibility',
-              fontSize: 12,
-            }}
-            dangerouslySetInnerHTML={{
-              __html: codeSnippet,
-            }}
+          <CodeDisplay
+            code={codeSnippet}
+            mode={snippet.codeMirrorMode}
+            theme={this.props.codeMirrorTheme}
           />
-          <div style={{minHeight: 10}} />
-        </pre>
+        </div>
       </div>
     );
   }
@@ -487,9 +475,15 @@ class ErrorBoundary extends React.Component<*, {hasError: boolean}> {
   render() {
     if (this.state.hasError) {
       return (
-        <div>
-          Something went wrong on our side while generating a snippet, sorry
-          about that!
+        <div style={{fontFamily: 'sans-serif'}} className="error-container">
+          Error generating code. Please{' '}
+          <a
+            href="https://spectrum.chat/onegraph"
+            target="_blank"
+            rel="noreferrer noopener">
+            report your query on Spectrum
+          </a>
+          .
         </div>
       );
     }
@@ -501,11 +495,11 @@ type WrapperProps = {
   query: string,
   serverUrl: string,
   variables: string,
-  context: Object, // XXX: fix
-  headers: {[name: string]: string},
-  theme: string,
+  context: Object,
+  headers?: {[name: string]: string},
   hideCodeExporter: () => void,
   snippets: Array<Snippet>,
+  codeMirrorTheme?: string,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
@@ -516,9 +510,9 @@ export default function CodeExporterWrapper({
   variables,
   context = {},
   headers = {},
-  theme = 'prism',
   hideCodeExporter = () => {},
-  snippets = defaultSnippets,
+  snippets,
+  codeMirrorTheme,
 }: WrapperProps) {
   let jsonVariables: Variables = {};
 
@@ -548,18 +542,24 @@ export default function CodeExporterWrapper({
       <div
         className="history-contents"
         style={{borderTop: '1px solid #d6d6d6'}}>
-        <ErrorBoundary>
-          <CodeExporter
-            query={query}
-            serverUrl={serverUrl}
-            snippets={snippets}
-            initialSnippet={snippets[0]}
-            theme={theme}
-            context={context}
-            headers={headers}
-            variables={jsonVariables}
-          />
-        </ErrorBoundary>
+        {snippets.length ? (
+          <ErrorBoundary>
+            <CodeExporter
+              query={query}
+              serverUrl={serverUrl}
+              snippets={snippets}
+              initialSnippet={snippets[0]}
+              context={context}
+              headers={headers}
+              variables={jsonVariables}
+              codeMirrorTheme={codeMirrorTheme}
+            />
+          </ErrorBoundary>
+        ) : (
+          <div style={{fontFamily: 'sans-serif'}} className="error-container">
+            Please provide a list of snippets
+          </div>
+        )}
       </div>
     </div>
   );

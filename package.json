@@ -1,6 +1,6 @@
 {
-  "name": "graphiql-code-exporter",
-  "version": "1.0.9",
+  "name": "@dww/graphiql-code-exporter",
+  "version": "1.0.21",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -20,7 +20,14 @@
     "type": "git",
     "url": "git+https://github.com/OneGraph/graphiql-code-exporter.git"
   },
-  "keywords": ["onegraph", "graphql", "graphiql", "tools", "devTools", "DX"],
+  "keywords": [
+    "onegraph",
+    "graphql",
+    "graphiql",
+    "tools",
+    "devTools",
+    "DX"
+  ],
   "author": "",
   "license": "MIT",
   "bugs": {
@@ -29,7 +36,6 @@
   "homepage": "https://github.com/OneGraph/graphiql-code-exporter#readme",
   "peerDependencies": {
     "graphql": "^14.1.1",
-    "prettier": "^1.16.0",
     "react": "^15.6.0 || ^16.0.0",
     "react-dom": "^16.2.0"
   },

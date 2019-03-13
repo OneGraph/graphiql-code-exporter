@@ -1,4 +1,3 @@
-import formatJavaScript from '../../utils/formatJavaScript';
 import commentsFactory from '../../utils/commentsFactory';
 import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
@@ -87,6 +86,6 @@ function ${capitalizeFirstLetter(operationName)}() {
   )
 }`;
 
-    return formatJavaScript(snippet);
+    return snippet;
   },
 };

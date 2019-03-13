@@ -1,4 +1,3 @@
-import formatJavaScript from '../../utils/formatJavaScript';
 import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
@@ -104,6 +103,6 @@ function ${capitalizeFirstLetter(operationName)}() {
 }
 `;
 
-    return formatJavaScript(snippet);
+    return snippet;
   },
 };

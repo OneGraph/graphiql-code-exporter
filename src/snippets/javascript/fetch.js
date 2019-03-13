@@ -1,6 +1,5 @@
 // @flow
 
-import formatJavaScript from '../../utils/formatJavaScript';
 import commentsFactory from '../../utils/commentsFactory';
 
 import type {Snippet} from '../../CodeExporter';
@@ -101,7 +100,7 @@ ${query}\``;
 
     ${fetchBody}`;
 
-    return formatJavaScript(snippet);
+    return snippet;
   },
 };
 
