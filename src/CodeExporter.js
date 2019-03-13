@@ -3,9 +3,6 @@ import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql/language';
 import Prism from 'prismjs';
 
-// TODO: can we use plain graphiql nodes or do we need @onegraph?
-import GraphiQL from '@onegraph/graphiql';
-
 // TODO: not sure if we should include all snippets by default
 import defaultSnippets from './snippets';
 
@@ -73,6 +70,73 @@ const getOperationDisplayName = operation =>
   operation.name
     ? operation.name.value
     : '<Unnamed:' + operation.operation + '>';
+
+/**
+ * ToolbarMenu
+ *
+ * A menu style button to use within the Toolbar.
+ * Copied from GraphiQL: https://github.com/graphql/graphiql/blob/272e2371fc7715217739efd7817ce6343cb4fbec/src/components/ToolbarMenu.js#L16-L80
+ */
+export class ToolbarMenu extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {visible: false};
+  }
+
+  componentWillUnmount() {
+    this._release();
+  }
+
+  render() {
+    const visible = this.state.visible;
+    return (
+      <a
+        className="toolbar-menu toolbar-button"
+        onClick={this.handleOpen.bind(this)}
+        onMouseDown={e => e.preventDefault()}
+        ref={node => {
+          this._node = node;
+        }}
+        title={this.props.title}>
+        {this.props.label}
+        <svg width="14" height="8">
+          <path fill="#666" d="M 5 1.5 L 14 1.5 L 9.5 7 z" />
+        </svg>
+        <ul className={'toolbar-menu-items' + (visible ? ' open' : '')}>
+          {this.props.children}
+        </ul>
+      </a>
+    );
+  }
+
+  _subscribe() {
+    if (!this._listener) {
+      this._listener = this.handleClick.bind(this);
+      document.addEventListener('click', this._listener);
+    }
+  }
+
+  _release() {
+    if (this._listener) {
+      document.removeEventListener('click', this._listener);
+      this._listener = null;
+    }
+  }
+
+  handleClick(e) {
+    if (this._node !== e.target) {
+      e.preventDefault();
+      this.setState({visible: false});
+      this._release();
+    }
+  }
+
+  handleOpen = e => {
+    e.preventDefault();
+    this.setState({visible: true});
+    this._subscribe();
+  };
+}
 
 class CodeExporter extends Component {
   constructor(props, context) {
@@ -229,7 +293,7 @@ class CodeExporter extends Component {
               'system, -apple-system, San Francisco, Helvetica Neue, arial, sans-serif',
           }}>
           <div style={{padding: '12px 7px 8px'}}>
-            <GraphiQL.Menu label={language} title="Language">
+            <ToolbarMenu label={language} title="Language">
               {snippets
                 .map(snippet => snippet.language)
                 .filter((lang, index, arr) => arr.indexOf(lang) === index)
@@ -237,8 +301,8 @@ class CodeExporter extends Component {
                 .map(lang => (
                   <li onClick={() => this.setLanguage(lang)}>{lang}</li>
                 ))}
-            </GraphiQL.Menu>
-            <GraphiQL.Menu label={name} title="Mode">
+            </ToolbarMenu>
+            <ToolbarMenu label={name} title="Mode">
               {snippets
                 .filter(snippet => snippet.language === language)
                 .map(snippet => snippet.name)
@@ -248,7 +312,7 @@ class CodeExporter extends Component {
                     {snippetName}
                   </li>
                 ))}
-            </GraphiQL.Menu>
+            </ToolbarMenu>
           </div>
           {snippet.options.length > 0 ? (
             <div style={{padding: '0px 11px 10px'}}>
