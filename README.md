@@ -38,6 +38,10 @@ npm i --save graphiql-code-exporter
 import React, { Component, Fragment } from 'react'
 import GraphiQL from 'graphiql'
 import CodeExporter from 'graphiql-code-exporter'
+import 'graphiql-code-exporter/CodeExporter.css';
+
+// Optional if you want to use a custom theme
+import 'codemirror/theme/neo.css';
 
 const serverUrl = /* your server url here */
 
@@ -70,6 +74,8 @@ export default class GraphiQLWithCodeExporter extends Component {
           Authorization: 'Bearer ' + /* AUTH_TOKEN */
         }}
         query={query}
+        // Optional if you want to use a custom theme
+        codeMirrorTheme="neo"
       />
     ) : null
 
@@ -93,27 +99,27 @@ export default class GraphiQLWithCodeExporter extends Component {
 
 ## Props
 
-| Property         | Type        | Description                                                                                                                                                 |
-| ---------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| hideCodeExporter | _Function_  | A callback function that is called when clicking the close (x) button in the upper right corner of the panel.                                               |
-| serverUrl        | _URI_       | The server url for your GraphQL endpoint.                                                                                                                   |
-| query            | _string_    | A string containing the GraphQL query that is synced with the GraphiQL query editor.                                                                        |
-| snippets         | _Snippet[]_ | A list of snippet objects that one can choose from to generate code snippets.                                                                               |
-| headers          | _Object?_   |  An optional object containing app specific HTTP headers                                                                                                    |
-| context          | _Object?_   |  An optional object containing any additional keys required to render app specific snippets                                                                 |
-| theme            | _string_    | The name of the [prism.js theme](https://prismjs.com/#basic-usage) in lower case and with '-' instead of spaces e.g. `solarized-light`. Defaults to `prism` |
+| Property         | Type        | Description                                                                                                                                                                                               |
+| ---------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hideCodeExporter | _Function_  | A callback function that is called when clicking the close (x) button in the upper right corner of the panel.                                                                                             |
+| serverUrl        | _URI_       | The server url for your GraphQL endpoint.                                                                                                                                                                 |
+| query            | _string_    | A string containing the GraphQL query that is synced with the GraphiQL query editor.                                                                                                                      |
+| snippets         | _Snippet[]_ | A list of snippet objects that one can choose from to generate code snippets.                                                                                                                             |
+| headers          | _Object?_   |  An optional object containing app specific HTTP headers                                                                                                                                                  |
+| context          | _Object?_   |  An optional object containing any additional keys required to render app specific snippets                                                                                                               |
+| codeMirrorTheme  | _string?_   | The name of the [CodeMirror theme](https://codemirror.net/demo/theme.html) you'd like to use e.g. `neo`. Make sure to also import the theme's css in your code (e.g. `import 'codemirror/theme/neo.css')` |
 
 ## Snippets
 
 What we call **snippet** here, is actually an object with 4 required keys.
 
-| Key           | Type       | Description                                                                                                                                                  |
-| ------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| name          | _string_   | A name that is used to identify the snippet.                                                                                                                 |
-| language      | _string_   | A language string that is used to group the snippets by language.                                                                                            |
-| prismLanguage | _string?_  | A valid [Prism language](https://prismjs.com/#languages-list) used for syntax highlighting. It defaults to the lower-cased `language` if none is provided.   |
-| options       | _Option[]_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false. |
-| generate      | _Function_ | A function that returns the generated code as a single string. It receives below listed data as an object.                                                   |
+| Key            | Type       | Description                                                                                                                                                       |
+| -------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name           | _string_   | A name that is used to identify the snippet.                                                                                                                      |
+| language       | _string_   | A language string that is used to group the snippets by language.                                                                                                 |
+| codeMirrorMode | _string_   | A valid [CodeMirror mode](https://codemirror.net/mode/) used for syntax highlighting. Make sure to also require the mode (e.g. `import 'codemirror/mode/jsx/jsx'` |
+| options        | _Option[]_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false.      |
+| generate       | _Function_ | A function that returns the generated code as a single string. It receives below listed data as an object.                                                        |
 
 #### Snippet Data
 
