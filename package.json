@@ -1,6 +1,6 @@
 {
   "name": "graphiql-code-exporter",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -31,16 +31,13 @@
   },
   "homepage": "https://github.com/OneGraph/graphiql-code-exporter#readme",
   "peerDependencies": {
+    "graphql": "^14.1.1",
+    "prettier": "^1.16.0",
     "react": "^15.6.0 || ^16.0.0"
   },
   "dependencies": {
-    "@onegraph/graphiql": "^0.11.12-1",
-    "antd": "^3.12.4",
     "copy-to-clipboard": "^3.0.8",
-    "graphql": "^14.1.1",
-    "prettier": "^1.16.0",
-    "prismjs": "^1.15.0",
-    "reason": "^3.3.4"
+    "prismjs": "^1.15.0"
   },
   "devDependencies": {
     "babel": "^6.5.2",

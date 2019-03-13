@@ -1,5 +1,4 @@
 import React, {Component} from 'react';
-import {Button, Icon, Tooltip} from 'antd';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql/language';
 import Prism from 'prismjs';
@@ -21,6 +20,17 @@ function formatVariableName(name) {
       .toUpperCase()
   );
 }
+
+const copyIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24">
+    <path fill="none" d="M0 0h24v24H0V0z" />
+    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm-1 4H8c-1.1 0-1.99.9-1.99 2L6 21c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V11l-6-6zM8 21V7h6v5h5v9H8z" />
+  </svg>
+);
 
 const getInitialOptions = snippet =>
   snippet.options.reduce((newOptions, option) => {
@@ -274,36 +284,49 @@ class CodeExporter extends Component {
             <div style={{minHeight: 8}} />
           )}
         </div>
-        <Tooltip
-          title="Copied!"
-          visible={showCopiedTooltip}
-          overlayStyle={{fontSize: 10}}>
-          <Button
+        <button
+          className={'toolbar-button'}
+          style={{
+            fontSize: '1.2em',
+            padding: 0,
+            position: 'absolute',
+            left: 340,
+            marginTop: -20,
+            width: 40,
+            height: 40,
+            backgroundColor: 'white',
+            borderRadius: 40,
+            border: 'none',
+          }}
+          type="link"
+          onClick={() => {
+            copy(rawSnippet);
+            this.setState({showCopiedTooltip: true}, () =>
+              setTimeout(() => this.setState({showCopiedTooltip: false}), 450),
+            );
+          }}>
+          <div
             style={{
-              fontSize: '1.2em',
-              padding: 0,
               position: 'absolute',
-              left: 340,
-              marginTop: -20,
-              width: 40,
-              height: 40,
-              backgroundColor: 'white',
-              borderRadius: 40,
-              boxShadow: '0 0 1px black',
+              top: '-30px',
+              left: '-15px',
+              fontSize: 'small',
+              padding: '6px 8px',
+              color: '#fff',
+              textAlign: 'left',
+              textDecoration: 'none',
+              wordWrap: 'break-word',
+              backgroundColor: 'rgba(0,0,0,0.75)',
+              borderRadius: '4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              display: showCopiedTooltip ? 'block' : 'none',
             }}
-            type="link"
-            onClick={() => {
-              copy(rawSnippet);
-              this.setState({showCopiedTooltip: true}, () =>
-                setTimeout(
-                  () => this.setState({showCopiedTooltip: false}),
-                  450,
-                ),
-              );
-            }}>
-            <Icon type="copy" />
-          </Button>
-        </Tooltip>
+            pointerEvents="none">
+            Copied!
+          </div>
+          {copyIcon}
+        </button>
+
         <pre
           style={{
             borderTop: '1px solid rgb(220, 220, 220)',
