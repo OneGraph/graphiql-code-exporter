@@ -297,7 +297,9 @@ class CodeExporter extends Component {
               {snippets
                 .map(snippet => snippet.language)
                 .filter((lang, index, arr) => arr.indexOf(lang) === index)
-                .sort((a, b) => a > b || -1)
+                .sort(
+                  (a, b) => a.toLocaleLowerCase() > b.toLocaleLowerCase() || -1,
+                )
                 .map(lang => (
                   <li onClick={() => this.setLanguage(lang)}>{lang}</li>
                 ))}
