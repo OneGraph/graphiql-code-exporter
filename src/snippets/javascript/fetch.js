@@ -1,5 +1,9 @@
+// @flow
+
 import formatJavaScript from '../../utils/formatJavaScript';
 import commentsFactory from '../../utils/commentsFactory';
+
+import type {Snippet} from '../../CodeExporter';
 
 const comments = {
   nodeFetch: `Node doesn't implement fetch so we have to import it`,
@@ -8,7 +12,7 @@ const comments = {
   fetchError: `handle fetch error`,
 };
 
-export default {
+const snippet: Snippet = {
   language: 'JavaScript',
   prismLanguage: 'javascript',
   name: 'fetch',
@@ -100,3 +104,5 @@ ${query}\``;
     return formatJavaScript(snippet);
   },
 };
+
+export default snippet;

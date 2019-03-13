@@ -1,3 +1,5 @@
+// @flow
+
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql/language';
@@ -6,7 +8,9 @@ import Prism from 'prismjs';
 // TODO: not sure if we should include all snippets by default
 import defaultSnippets from './snippets';
 
-function formatVariableName(name) {
+import type {OperationDefinitionNode, VariableDefinitionNode} from 'graphql';
+
+function formatVariableName(name: string) {
   var uppercasePattern = /[A-Z]/g;
 
   return (
@@ -29,7 +33,37 @@ const copyIcon = (
   </svg>
 );
 
-const getInitialOptions = snippet =>
+type Variables = {[key: string]: ?mixed};
+
+type Options = {[id: string]: {label: string, value: string}};
+
+type GenerateOperation = {
+  query: string,
+  name: string,
+  displayName: string,
+  type: string,
+  variableName: string,
+  variables: Variables,
+  operation: OperationDefinitionNode,
+};
+
+export type GenerateOptions = {
+  serverUrl: string,
+  headers: {[name: string]: string},
+  context: Object,
+  operations: Array<GenerateOperation>,
+  options: Options,
+};
+
+export type Snippet = {
+  options: Array<{id: string, label: string, initial?: boolean}>,
+  language: string,
+  prismLanguage: ?string,
+  name: string,
+  generate: (options: GenerateOptions) => string,
+};
+
+const getInitialOptions = (snippet: Snippet): Options =>
   snippet.options.reduce((newOptions, option) => {
     newOptions[option.id] = {
       label: option.label,
@@ -39,19 +73,29 @@ const getInitialOptions = snippet =>
     return newOptions;
   }, {});
 
-// TODO: filter subscriptions
-const getOperations = query => {
-  let operations = [];
+const getOperations = (query: string): Array<OperationDefinitionNode> => {
+  const operations = [];
   try {
-    operations = parse(query).definitions;
-  } catch (e) {}
-
-  return operations;
+    for (const def of parse(query).definitions) {
+      if (
+        def.kind === 'OperationDefinition' &&
+        def.operation !== 'subscription'
+      ) {
+        operations.push(def);
+      }
+    }
+    return operations;
+  } catch (e) {
+    return [];
+  }
 };
 
-const getUsedVariables = (variables, operation) => {
+const getUsedVariables = (
+  variables: Variables,
+  operation: OperationDefinitionNode,
+): Variables => {
   return (operation.variableDefinitions || []).reduce(
-    (usedVariables, variable) => {
+    (usedVariables, variable: VariableDefinitionNode) => {
       const variableName = variable.variable.name.value;
       if (variables[variableName]) {
         usedVariables[variableName] = variables[variableName];
@@ -63,7 +107,7 @@ const getUsedVariables = (variables, operation) => {
   );
 };
 
-const getOperationName = operation =>
+const getOperationName = (operation: OperationDefinitionNode) =>
   operation.name ? operation.name.value : operation.operation;
 
 const getOperationDisplayName = operation =>
@@ -138,24 +182,38 @@ export class ToolbarMenu extends Component {
   };
 }
 
-class CodeExporter extends Component {
-  constructor(props, context) {
+type Props = {|
+  initialSnippet: Snippet,
+  snippets: Array<Snippet>,
+  query: string,
+  theme: string,
+  serverUrl: string,
+  context: Object, // XXX: fix
+  variables: Variables, // XXX: fix
+  headers: {[name: string]: string},
+  setOption?: (id: string, value: boolean) => void,
+|};
+type State = {|
+  languages: Array<string>,
+  showCopiedTooltip: boolean,
+  options: Options,
+  snippet: Snippet,
+  query: string,
+  operations?: $ReadOnlyArray<OperationDefinitionNode>,
+|};
+
+class CodeExporter extends Component<Props, State> {
+  style: ?HTMLLinkElement;
+  constructor(props: Props, context) {
     super(props, context);
 
-    const {initialSnippet, snippets} = props;
-
-    if (!snippets || snippets.length === 0) {
-      // TODO: throw
-      return false;
-    }
-
-    const snippet = initialSnippet || snippets[0];
+    const {initialSnippet} = props;
 
     this.state = {
       languages: [],
       showCopiedTooltip: false,
-      options: getInitialOptions(snippet),
-      snippet,
+      options: getInitialOptions(initialSnippet),
+      snippet: initialSnippet,
       query: props.query,
     };
   }
@@ -170,15 +228,16 @@ class CodeExporter extends Component {
         '.min.css',
     );
 
-    document.head.appendChild(style);
+    document.head ? document.head.appendChild(style) : null;
     this.style = style;
 
-    const langs = this.props.snippets.map(
+    const langs: Array<string> = this.props.snippets.map(
       snippet => snippet.prismLanguage || snippet.language.toLowerCase(),
     );
 
     langs.forEach(lang => {
       if (this.state.languages.indexOf(lang) === -1) {
+        // $FlowFixMe: No dynamic requires (can have the snippet require this)
         require('prismjs/components/prism-' + lang);
       }
     });
@@ -189,10 +248,10 @@ class CodeExporter extends Component {
   }
 
   componentWillUnmount() {
-    this.style.remove();
+    this.style && this.style.remove();
   }
 
-  static getDerivedStateFromProps(props, state) {
+  static getDerivedStateFromProps(props: Props, state: State) {
     // for now we do not support subscriptions, might add those later
     const operations = getOperations(props.query).filter(
       op => op.operation !== 'subscription',
@@ -204,31 +263,34 @@ class CodeExporter extends Component {
     };
   }
 
-  setSnippet = name => {
+  setSnippet = (name: string) => {
     const snippet = this.props.snippets.find(
       snippet =>
         snippet.name === name &&
         snippet.language === this.state.snippet.language,
     );
-
-    this.setState({
-      options: getInitialOptions(snippet),
-      snippet,
-    });
+    if (snippet) {
+      this.setState({
+        options: getInitialOptions(snippet),
+        snippet,
+      });
+    }
   };
 
-  setLanguage = language => {
+  setLanguage = (language: string) => {
     const snippet = this.props.snippets.find(
       snippet => snippet.language === language,
     );
 
-    this.setState({
-      options: getInitialOptions(snippet),
-      snippet,
-    });
+    if (snippet) {
+      this.setState({
+        options: getInitialOptions(snippet),
+        snippet,
+      });
+    }
   };
 
-  defaultSetOption = (id, value) => {
+  defaultSetOption = (id: string, value: boolean) => {
     return this.setState({
       options: {
         ...this.state.options,
@@ -257,15 +319,17 @@ class CodeExporter extends Component {
 
     const {name, language, prismLanguage, generate} = snippet;
 
-    const operationList = operations.map(operation => ({
-      query: print(operation),
-      name: getOperationName(operation),
-      displayName: getOperationDisplayName(operation),
-      type: operation.operation,
-      variableName: formatVariableName(getOperationName(operation)),
-      variables: getUsedVariables(variables, operation),
-      operation,
-    }));
+    const operationList = operations.map(
+      (operation: OperationDefinitionNode) => ({
+        query: print(operation),
+        name: getOperationName(operation),
+        displayName: getOperationDisplayName(operation),
+        type: operation.operation,
+        variableName: formatVariableName(getOperationName(operation)),
+        variables: getUsedVariables(variables, operation),
+        operation,
+      }),
+    );
 
     let codeSnippet = generate({
       serverUrl,
@@ -296,11 +360,11 @@ class CodeExporter extends Component {
             <ToolbarMenu label={language} title="Language">
               {snippets
                 .map(snippet => snippet.language)
-                .filter((lang, index, arr) => arr.indexOf(lang) === index)
-                .sort(
-                  (a, b) => a.toLocaleLowerCase() > b.toLocaleLowerCase() || -1,
+                .filter(
+                  (lang: string, index, arr) => arr.indexOf(lang) === index,
                 )
-                .map(lang => (
+                .sort((a: string, b: string) => a.localeCompare(b))
+                .map((lang: string) => (
                   <li onClick={() => this.setLanguage(lang)}>{lang}</li>
                 ))}
             </ToolbarMenu>
@@ -308,8 +372,10 @@ class CodeExporter extends Component {
               {snippets
                 .filter(snippet => snippet.language === language)
                 .map(snippet => snippet.name)
-                .sort((a, b) => a.toLowerCase() > b.toLowerCase() || -1)
-                .map(snippetName => (
+                .sort((a: string, b: string) =>
+                  a.toLowerCase().localeCompare(b.toLowerCase()),
+                )
+                .map((snippetName: string) => (
                   <li onClick={() => this.setSnippet(snippetName)}>
                     {snippetName}
                   </li>
@@ -328,7 +394,7 @@ class CodeExporter extends Component {
                 Options
               </div>
               {Object.keys(options)
-                .sort((a, b) => a > b || -1)
+                .sort((a: string, b: string) => a.localeCompare(b))
                 .map(optionId => (
                   <div key={optionId}>
                     <input
@@ -438,6 +504,17 @@ class ErrorBoundary extends React.Component<*, {hasError: boolean}> {
   }
 }
 
+type WrapperProps = {
+  query: string,
+  serverUrl: string,
+  variables: string,
+  context: Object, // XXX: fix
+  headers: {[name: string]: string},
+  theme: string,
+  hideCodeExporter: () => void,
+  snippets: Array<Snippet>,
+};
+
 // we borrow class names from graphiql's CSS as the visual appearance is the same
 // yet we might want to change that at some point in order to have a self-contained standalone
 export default function CodeExporterWrapper({
@@ -449,11 +526,14 @@ export default function CodeExporterWrapper({
   theme = 'prism',
   hideCodeExporter = () => {},
   snippets = defaultSnippets,
-}) {
-  let jsonVariables = {};
+}: WrapperProps) {
+  let jsonVariables: Variables = {};
 
   try {
-    jsonVariables = JSON.parse(variables);
+    const parsedVariables = JSON.parse(variables);
+    if (typeof parsedVariables === 'object') {
+      jsonVariables = parsedVariables;
+    }
   } catch (e) {}
 
   return (
@@ -480,6 +560,7 @@ export default function CodeExporterWrapper({
             query={query}
             serverUrl={serverUrl}
             snippets={snippets}
+            initialSnippet={snippets[0]}
             theme={theme}
             context={context}
             headers={headers}

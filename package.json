@@ -2,28 +2,24 @@
   "name": "graphiql-code-exporter",
   "version": "1.0.9",
   "description": "Export working code snippets from GraphiQL queries",
-  "main": "lib/index.js",
-  "module": "es/index.js",
-  "jsnext:main": "es/index.js",
+  "main": "dist/index.js",
+  "module": "dist/index",
   "scripts": {
-    "build:es": "babel -d es src --ignore __tests__",
-    "build:lib": "cross-env BABEL_ENV=commonjs babel -d lib src --ignore __tests__",
-    "build": "yarn build:es && yarn build:lib",
+    "build": "npm run build:clean && npm run build:cjs && npm run build:mjs && npm run build:flow",
+    "build:clean": "rm -rf ./dist && mkdir ./dist",
+    "build:js": "babel src --ignore 'src/__fixtures__,**/__tests__'",
+    "build:cjs": "npm run build:js -- --env-name cjs --out-dir dist/",
+    "build:mjs": "npm run build:js -- --env-name mjs --out-dir dist/module && for file in $(find dist/module -name '*.js'); do mv \"$file\" `echo \"$file\" | sed 's/dist\\/module/dist/g; s/.js$/.mjs/g'`; done && rm -rf dist/module",
+    "build:flow": "for file in $(find ./src -name '*.js' -not -path '*/__fixtures__*' -not -path '*/__tests__*'); do cp \"$file\" `echo \"$file\" | sed 's/\\/src\\//\\/dist\\//g'`.flow; done",
     "release": "yarn build && npm publish",
-    "test": "cross-env BABEL_ENV=commonjs jest"
+    "test": "cross-env BABEL_ENV=commonjs jest",
+    "flow": "flow"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/OneGraph/graphiql-code-exporter.git"
   },
-  "keywords": [
-    "onegraph",
-    "graphql",
-    "graphiql",
-    "tools",
-    "devTools",
-    "DX"
-  ],
+  "keywords": ["onegraph", "graphql", "graphiql", "tools", "devTools", "DX"],
   "author": "",
   "license": "MIT",
   "bugs": {
@@ -50,6 +46,7 @@
     "babel-preset-react": "^6.5.0",
     "babel-preset-stage-0": "^6.5.0",
     "cross-env": "^5.2.0",
+    "flow-bin": "^0.94.0",
     "jest": "^19.0.0",
     "react": "^16.7.0",
     "react-dom": "^16.2.0"
