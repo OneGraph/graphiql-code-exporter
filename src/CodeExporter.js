@@ -37,7 +37,10 @@ const copyIcon = (
 
 export type Variables = {[key: string]: ?mixed};
 
-export type Options = {[id: string]: {label: string, value: string}};
+// TODO: Need clearer separation between option defs and option values
+export type Options = Array<{id: string, label: string, initial: boolean}>;
+
+export type OptionValues = {[id: string]: boolean};
 
 export type OperationData = {
   query: string,
@@ -54,28 +57,25 @@ export type GenerateOptions = {
   headers: {[name: string]: string},
   context: Object,
   operationDataList: Array<OperationData>,
-  options: Options,
+  options: OptionValues,
 };
 
 export type Snippet = {
-  options: Array<{id: string, label: string, initial?: boolean}>,
+  options: Options,
   language: string,
   codeMirrorMode: string,
   name: string,
   generate: (options: GenerateOptions) => string,
 };
 
-const getInitialOptions = (snippet: Snippet): Options =>
-  snippet.options.reduce((newOptions, option) => {
-    newOptions[option.id] = {
-      label: option.label,
-      value: option.initial,
-    };
-
-    return newOptions;
-  }, {});
-
-const getOperationNodes = (query: string): Array<OperationDefinitionNode> => {
+let operationNodesMemo: [?string, ?Array<OperationDefinitionNode>] = [
+  null,
+  null,
+];
+function getOperationNodes(query: string): Array<OperationDefinitionNode> {
+  if (operationNodesMemo[0] === query && operationNodesMemo[1]) {
+    return operationNodesMemo[1];
+  }
   const operationDefinitions = [];
   try {
     for (const def of parse(query).definitions) {
@@ -86,11 +86,10 @@ const getOperationNodes = (query: string): Array<OperationDefinitionNode> => {
         operationDefinitions.push(def);
       }
     }
-    return operationDefinitions;
-  } catch (e) {
-    return [];
-  }
-};
+  } catch (e) {}
+  operationNodesMemo = [query, operationDefinitions];
+  return operationDefinitions;
+}
 
 const getUsedVariables = (
   variables: Variables,
@@ -221,61 +220,39 @@ class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
 }
 
 type Props = {|
-  initialSnippet: Snippet,
+  snippet: ?Snippet,
   snippets: Array<Snippet>,
   query: string,
   serverUrl: string,
   context: Object,
   variables: Variables,
   headers: {[name: string]: string},
-  setOption?: (id: string, value: boolean) => void,
+  setOptionValue?: (id: string, value: boolean) => void,
+  optionValues: OptionValues,
   codeMirrorTheme: ?string,
+  onSelectSnippet: ?(snippet: Snippet) => void,
+  onSetOptionValue: ?(snippet: Snippet, option: string, value: boolean) => void,
 |};
 type State = {|
   showCopiedTooltip: boolean,
-  options: Options,
-  snippet: Snippet,
-  query: string,
-  operationDefinitions?: $ReadOnlyArray<OperationDefinitionNode>,
+  optionValuesBySnippet: Map<Snippet, OptionValues>,
+  snippet: ?Snippet,
 |};
 
 class CodeExporter extends Component<Props, State> {
   style: ?HTMLLinkElement;
-  constructor(props: Props, context) {
-    super(props, context);
+  state = {
+    showCopiedTooltip: false,
+    optionValuesBySnippet: new Map(),
+    snippet: null,
+  };
 
-    const {initialSnippet} = props;
+  _activeSnippet = (): Snippet =>
+    this.props.snippet || this.state.snippet || this.props.snippets[0];
 
-    this.state = {
-      showCopiedTooltip: false,
-      options: getInitialOptions(initialSnippet),
-      snippet: initialSnippet,
-      query: props.query,
-    };
-  }
-
-  static getDerivedStateFromProps(props: Props, state: State) {
-    // for now we do not support subscriptions, might add those later
-    const operationDefinitions = getOperationNodes(props.query);
-
-    return {
-      operationDefinitions,
-      query: props.query,
-    };
-  }
-
-  setSnippet = (name: string) => {
-    const snippet = this.props.snippets.find(
-      snippet =>
-        snippet.name === name &&
-        snippet.language === this.state.snippet.language,
-    );
-    if (snippet) {
-      this.setState({
-        options: getInitialOptions(snippet),
-        snippet,
-      });
-    }
+  setSnippet = (snippet: Snippet) => {
+    this.props.onSelectSnippet && this.props.onSelectSnippet(snippet);
+    this.setState({snippet});
   };
 
   setLanguage = (language: string) => {
@@ -284,48 +261,45 @@ class CodeExporter extends Component<Props, State> {
     );
 
     if (snippet) {
-      this.setState({
-        options: getInitialOptions(snippet),
-        snippet,
-      });
+      this.setSnippet(snippet);
     }
   };
 
-  defaultSetOption = (id: string, value: boolean) => {
-    return this.setState({
-      options: {
-        ...this.state.options,
-        [id]: {
-          ...this.state.options[id],
-          value: value,
-        },
-      },
-    });
+  handleSetOptionValue = (snippet: Snippet, id: string, value: boolean) => {
+    this.props.onSetOptionValue &&
+      this.props.onSetOptionValue(snippet, id, value);
+    const {optionValuesBySnippet} = this.state;
+    const snippetOptions = optionValuesBySnippet.get(snippet) || {};
+    optionValuesBySnippet.set(snippet, {...snippetOptions, [id]: value});
+
+    return this.setState({optionValuesBySnippet});
+  };
+
+  getOptionValues = (snippet: Snippet) => {
+    const snippetDefaults = snippet.options.reduce(
+      (acc, option) => ({...acc, [option.id]: option.initial}),
+      {},
+    );
+    return {
+      ...snippetDefaults,
+      ...(this.state.optionValuesBySnippet.get(snippet) || {}),
+      ...this.props.optionValues,
+    };
   };
 
   render() {
     const {
       serverUrl,
+      query,
       snippets,
       context = {},
       variables = {},
       headers = {},
-      setOption = this.defaultSetOption,
     } = this.props;
-    const {
-      snippet,
-      options,
-      operationDefinitions,
-      showCopiedTooltip,
-    } = this.state;
+    const {showCopiedTooltip} = this.state;
 
-    if (
-      !operationDefinitions ||
-      operationDefinitions.length === 0 ||
-      !snippet
-    ) {
-      return null;
-    }
+    const snippet = this._activeSnippet();
+    const operationDefinitions = getOperationNodes(query);
 
     const {name, language, generate} = snippet;
 
@@ -341,16 +315,21 @@ class CodeExporter extends Component<Props, State> {
       }),
     );
 
-    let codeSnippet = generate({
-      serverUrl,
-      headers,
-      context,
-      operationDataList,
-      options: Object.keys(options).reduce((flags, id) => {
-        flags[id] = options[id].value;
-        return flags;
-      }, {}),
-    });
+    const optionValues = this.getOptionValues(snippet);
+
+    const codeSnippet = operationDefinitions.length
+      ? generate({
+          serverUrl,
+          headers,
+          context,
+          operationDataList,
+          options: optionValues,
+        })
+      : null;
+
+    const languages = [
+      ...new Set(snippets.map(snippet => snippet.language)),
+    ].sort((a, b) => a.localeCompare(b));
 
     return (
       <div className="graphiql-code-exporter" style={{minWidth: 410}}>
@@ -361,26 +340,16 @@ class CodeExporter extends Component<Props, State> {
           }}>
           <div style={{padding: '12px 7px 8px'}}>
             <ToolbarMenu label={language} title="Language">
-              {snippets
-                .map(snippet => snippet.language)
-                .filter(
-                  (lang: string, index, arr) => arr.indexOf(lang) === index,
-                )
-                .sort((a: string, b: string) => a.localeCompare(b))
-                .map((lang: string) => (
-                  <li onClick={() => this.setLanguage(lang)}>{lang}</li>
-                ))}
+              {languages.map((lang: string) => (
+                <li onClick={() => this.setLanguage(lang)}>{lang}</li>
+              ))}
             </ToolbarMenu>
             <ToolbarMenu label={name} title="Mode">
               {snippets
                 .filter(snippet => snippet.language === language)
-                .map(snippet => snippet.name)
-                .sort((a: string, b: string) =>
-                  a.toLowerCase().localeCompare(b.toLowerCase()),
-                )
-                .map((snippetName: string) => (
-                  <li onClick={() => this.setSnippet(snippetName)}>
-                    {snippetName}
+                .map(snippet => (
+                  <li onClick={() => this.setSnippet(snippet)}>
+                    {snippet.name}
                   </li>
                 ))}
             </ToolbarMenu>
@@ -396,24 +365,26 @@ class CodeExporter extends Component<Props, State> {
                 }}>
                 Options
               </div>
-              {Object.keys(options)
-                .sort((a: string, b: string) => a.localeCompare(b))
-                .map(optionId => (
-                  <div key={optionId}>
-                    <input
-                      id={optionId}
-                      type="checkbox"
-                      style={{position: 'relative', top: -1}}
-                      checked={options[optionId].value}
-                      onChange={() =>
-                        setOption(optionId, !options[optionId].value)
-                      }
-                    />
-                    <label for={optionId} style={{paddingLeft: 5}}>
-                      {options[optionId].label}
-                    </label>
-                  </div>
-                ))}
+              {snippet.options.map(option => (
+                <div key={option.id}>
+                  <input
+                    id={option.id}
+                    type="checkbox"
+                    style={{position: 'relative', top: -1}}
+                    checked={optionValues[option.id]}
+                    onChange={() =>
+                      this.handleSetOptionValue(
+                        snippet,
+                        option.id,
+                        !optionValues[option.id],
+                      )
+                    }
+                  />
+                  <label for={option.id} style={{paddingLeft: 5}}>
+                    {option.label}
+                  </label>
+                </div>
+              ))}
             </div>
           ) : (
             <div style={{minHeight: 8}} />
@@ -467,12 +438,21 @@ class CodeExporter extends Component<Props, State> {
             padding: '15px 12px',
             margin: 0,
             borderTop: '1px solid rgb(220, 220, 220)',
+            fontSize: 12,
           }}>
-          <CodeDisplay
-            code={codeSnippet}
-            mode={snippet.codeMirrorMode}
-            theme={this.props.codeMirrorTheme}
-          />
+          {codeSnippet ? (
+            <CodeDisplay
+              code={codeSnippet}
+              mode={snippet.codeMirrorMode}
+              theme={this.props.codeMirrorTheme}
+            />
+          ) : (
+            <div>
+              Invalid query.
+              <br />
+              Please fix any errors in the query editor.
+            </div>
+          )}
         </div>
       </div>
     );
@@ -514,7 +494,11 @@ type WrapperProps = {
   headers?: {[name: string]: string},
   hideCodeExporter: () => void,
   snippets: Array<Snippet>,
+  snippet?: Snippet,
   codeMirrorTheme?: string,
+  onSelectSnippet?: (snippet: Snippet) => void,
+  onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
+  optionValues?: OptionValues,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
@@ -527,7 +511,11 @@ export default function CodeExporterWrapper({
   headers = {},
   hideCodeExporter = () => {},
   snippets,
+  snippet,
   codeMirrorTheme,
+  onSelectSnippet,
+  onSetOptionValue,
+  optionValues,
 }: WrapperProps) {
   let jsonVariables: Variables = {};
 
@@ -563,11 +551,14 @@ export default function CodeExporterWrapper({
               query={query}
               serverUrl={serverUrl}
               snippets={snippets}
-              initialSnippet={snippets[0]}
+              snippet={snippet}
               context={context}
               headers={headers}
               variables={jsonVariables}
               codeMirrorTheme={codeMirrorTheme}
+              onSelectSnippet={onSelectSnippet}
+              onSetOptionValue={onSetOptionValue}
+              optionValues={optionValues || {}}
             />
           </ErrorBoundary>
         ) : (

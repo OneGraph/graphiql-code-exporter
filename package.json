@@ -1,6 +1,6 @@
 {
   "name": "graphiql-code-exporter",
-  "version": "2.0.0-alpha.3",
+  "version": "2.0.0-alpha.4",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -65,6 +65,7 @@
     "flow-copy-source": "^2.0.3",
     "graphql": "^14.1.1",
     "jest": "^19.0.0",
+    "prettier": "^1.16.4",
     "react": "^16.7.0",
     "react-dom": "^16.2.0"
   }

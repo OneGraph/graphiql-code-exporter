@@ -6,6 +6,7 @@ export type {
   GenerateOptions,
   OperationData,
   Options,
+  OptionValues,
   Variables,
 } from './CodeExporter';
 
