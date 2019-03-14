@@ -1,7 +1,13 @@
 // @flow
 
 import CodeExporter from './CodeExporter';
-export type {Snippet} from './CodeExporter';
+export type {
+  Snippet,
+  GenerateOptions,
+  OperationData,
+  Options,
+  Variables,
+} from './CodeExporter';
 
 import capitalizeFirstLetter from './utils/capitalizeFirstLetter';
 import commentsFactory from './utils/commentsFactory';

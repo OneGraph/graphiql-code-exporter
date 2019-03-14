@@ -3,9 +3,14 @@
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql';
+// $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
 
-import type {OperationDefinitionNode, VariableDefinitionNode} from 'graphql';
+import type {
+  OperationDefinitionNode,
+  VariableDefinitionNode,
+  OperationTypeNode,
+} from 'graphql';
 
 function formatVariableName(name: string) {
   var uppercasePattern = /[A-Z]/g;
@@ -30,25 +35,25 @@ const copyIcon = (
   </svg>
 );
 
-type Variables = {[key: string]: ?mixed};
+export type Variables = {[key: string]: ?mixed};
 
-type Options = {[id: string]: {label: string, value: string}};
+export type Options = {[id: string]: {label: string, value: string}};
 
-type GenerateOperation = {
+export type OperationData = {
   query: string,
   name: string,
   displayName: string,
-  type: string,
+  type: OperationTypeNode,
   variableName: string,
   variables: Variables,
-  operation: OperationDefinitionNode,
+  operationDefinition: OperationDefinitionNode,
 };
 
 export type GenerateOptions = {
   serverUrl: string,
   headers: {[name: string]: string},
   context: Object,
-  operations: Array<GenerateOperation>,
+  operationDataList: Array<OperationData>,
   options: Options,
 };
 
@@ -70,18 +75,18 @@ const getInitialOptions = (snippet: Snippet): Options =>
     return newOptions;
   }, {});
 
-const getOperations = (query: string): Array<OperationDefinitionNode> => {
-  const operations = [];
+const getOperationNodes = (query: string): Array<OperationDefinitionNode> => {
+  const operationDefinitions = [];
   try {
     for (const def of parse(query).definitions) {
       if (
         def.kind === 'OperationDefinition' &&
         def.operation !== 'subscription'
       ) {
-        operations.push(def);
+        operationDefinitions.push(def);
       }
     }
-    return operations;
+    return operationDefinitions;
   } catch (e) {
     return [];
   }
@@ -89,9 +94,9 @@ const getOperations = (query: string): Array<OperationDefinitionNode> => {
 
 const getUsedVariables = (
   variables: Variables,
-  operation: OperationDefinitionNode,
+  operationDefinition: OperationDefinitionNode,
 ): Variables => {
-  return (operation.variableDefinitions || []).reduce(
+  return (operationDefinition.variableDefinitions || []).reduce(
     (usedVariables, variable: VariableDefinitionNode) => {
       const variableName = variable.variable.name.value;
       if (variables[variableName]) {
@@ -104,13 +109,15 @@ const getUsedVariables = (
   );
 };
 
-const getOperationName = (operation: OperationDefinitionNode) =>
-  operation.name ? operation.name.value : operation.operation;
+const getOperationName = (operationDefinition: OperationDefinitionNode) =>
+  operationDefinition.name
+    ? operationDefinition.name.value
+    : operationDefinition.operation;
 
-const getOperationDisplayName = operation =>
-  operation.name
-    ? operation.name.value
-    : '<Unnamed:' + operation.operation + '>';
+const getOperationDisplayName = operationDefinition =>
+  operationDefinition.name
+    ? operationDefinition.name.value
+    : '<Unnamed:' + operationDefinition.operation + '>';
 
 /**
  * ToolbarMenu
@@ -229,7 +236,7 @@ type State = {|
   options: Options,
   snippet: Snippet,
   query: string,
-  operations?: $ReadOnlyArray<OperationDefinitionNode>,
+  operationDefinitions?: $ReadOnlyArray<OperationDefinitionNode>,
 |};
 
 class CodeExporter extends Component<Props, State> {
@@ -249,12 +256,10 @@ class CodeExporter extends Component<Props, State> {
 
   static getDerivedStateFromProps(props: Props, state: State) {
     // for now we do not support subscriptions, might add those later
-    const operations = getOperations(props.query).filter(
-      op => op.operation !== 'subscription',
-    );
+    const operationDefinitions = getOperationNodes(props.query);
 
     return {
-      operations,
+      operationDefinitions,
       query: props.query,
     };
   }
@@ -307,23 +312,32 @@ class CodeExporter extends Component<Props, State> {
       headers = {},
       setOption = this.defaultSetOption,
     } = this.props;
-    const {snippet, options, operations, showCopiedTooltip} = this.state;
+    const {
+      snippet,
+      options,
+      operationDefinitions,
+      showCopiedTooltip,
+    } = this.state;
 
-    if (!operations || operations.length === 0 || !snippet) {
+    if (
+      !operationDefinitions ||
+      operationDefinitions.length === 0 ||
+      !snippet
+    ) {
       return null;
     }
 
     const {name, language, generate} = snippet;
 
-    const operationList = operations.map(
-      (operation: OperationDefinitionNode) => ({
-        query: print(operation),
-        name: getOperationName(operation),
-        displayName: getOperationDisplayName(operation),
-        type: operation.operation,
-        variableName: formatVariableName(getOperationName(operation)),
-        variables: getUsedVariables(variables, operation),
-        operation,
+    const operationDataList: Array<OperationData> = operationDefinitions.map(
+      (operationDefinition: OperationDefinitionNode) => ({
+        query: print(operationDefinition),
+        name: getOperationName(operationDefinition),
+        displayName: getOperationDisplayName(operationDefinition),
+        type: operationDefinition.operation,
+        variableName: formatVariableName(getOperationName(operationDefinition)),
+        variables: getUsedVariables(variables, operationDefinition),
+        operationDefinition,
       }),
     );
 
@@ -331,7 +345,7 @@ class CodeExporter extends Component<Props, State> {
       serverUrl,
       headers,
       context,
-      operations: operationList,
+      operationDataList,
       options: Object.keys(options).reduce((flags, id) => {
         flags[id] = options[id].value;
         return flags;

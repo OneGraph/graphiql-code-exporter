@@ -1,4 +1,6 @@
 [ignore]
+.*/es/.*
+.*/lib/.*
 
 [include]
 

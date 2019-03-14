@@ -1,8 +1,4 @@
-// @flow
-
 import commentsFactory from '../../utils/commentsFactory';
-
-import type {Snippet} from '../../CodeExporter';
 
 const comments = {
   nodeFetch: `Node doesn't implement fetch so we have to import it`,
@@ -11,7 +7,7 @@ const comments = {
   fetchError: `handle fetch error`,
 };
 
-const snippet: Snippet = {
+const snippet = {
   language: 'JavaScript',
   prismLanguage: 'javascript',
   name: 'fetch',
