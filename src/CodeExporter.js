@@ -448,9 +448,9 @@ class CodeExporter extends Component<Props, State> {
             />
           ) : (
             <div>
-              Invalid query.
+              The query is invalid.
               <br />
-              Please fix any errors in the query editor.
+              The generated code will appear here once the errors in the query editor are resolved.
             </div>
           )}
         </div>
