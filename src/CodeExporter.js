@@ -432,6 +432,7 @@ class CodeExporter extends Component<Props, State> {
             backgroundColor: 'white',
             borderRadius: 40,
             border: 'none',
+            outline: 'none',
           }}
           type="link"
           onClick={() => {
