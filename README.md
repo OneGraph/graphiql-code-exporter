@@ -3,6 +3,8 @@
 A GraphiQL addon that generates ready-to-run code for your queries and mutations.  
 It provides a wide range of default snippets, but is also extendable with custom snippets.
 
+[![Bundlesize](https://badgen.net/bundlephobia/minzip/graphiql-code-exporter?color=green&icon=npm)](https://bundlephobia.com/result?p=graphiql-code-exporter)
+
 ![Demo](demo.gif)
 
 > Read the [introduction blog post]() to learn why and how we built it!
