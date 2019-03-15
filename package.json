@@ -1,6 +1,6 @@
 {
   "name": "graphiql-code-exporter",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -47,8 +47,7 @@
     "react-dom": "^16.2.0"
   },
   "dependencies": {
-    "copy-to-clipboard": "^3.0.8",
-    "prismjs": "^1.15.0"
+    "copy-to-clipboard": "^3.0.8"
   },
   "devDependencies": {
     "babel": "^6.5.2",
