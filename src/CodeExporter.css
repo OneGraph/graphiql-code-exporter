@@ -1,0 +1,12 @@
+.graphiql-code-exporter .CodeMirror {
+  position: relative;
+  font-size: 11px;
+  background: transparent;
+}
+.graphiql-code-exporter .CodeMirror-lines {
+  padding-top: 0;
+}
+
+.graphiql-code-exporter .CodeMirror-cursors {
+  display: none;
+}

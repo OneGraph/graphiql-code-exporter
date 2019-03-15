@@ -197,7 +197,7 @@ class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
       value: this.props.code.trim(),
       lineNumbers: false,
       mode: this.props.mode,
-      readOnly: 'nocursor',
+      readOnly: true,
       theme: this.props.theme,
     });
   }
