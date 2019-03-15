@@ -1,4 +1,3 @@
-import formatJavaScript from '../../utils/formatJavaScript';
 import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 
 export default {
@@ -57,7 +56,7 @@ ${operation}\``;
     {(${operationName}, { loading, error, data }) => {
       if (loading) return <${element}>Loading</${element}>
       if (error) return <${element}>Error</${element}>
-    
+
       // call ${operationName}() to run the mutation
       return <button onClick={() => ${operationName}({ variables: ${vars} })}>Mutate</button>
     }}
@@ -98,12 +97,12 @@ ${clientSetup}
 function ${capitalizeFirstLetter(operationName)}() {
   return (
     ${options.client ? '<ApolloProvider client={apolloClient}>' : ''}
-    ${component}  
-    ${options.client ? '</ApolloProvider>' : ''} 
+    ${component}
+    ${options.client ? '</ApolloProvider>' : ''}
   )
 }
 `;
 
-    return formatJavaScript(snippet);
+    return snippet;
   },
 };

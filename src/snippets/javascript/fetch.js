@@ -1,4 +1,3 @@
-import formatJavaScript from '../../utils/formatJavaScript';
 import commentsFactory from '../../utils/commentsFactory';
 
 const comments = {
@@ -8,7 +7,7 @@ const comments = {
   fetchError: `handle fetch error`,
 };
 
-export default {
+const snippet = {
   language: 'JavaScript',
   prismLanguage: 'javascript',
   name: 'fetch',
@@ -97,6 +96,8 @@ ${query}\``;
 
     ${fetchBody}`;
 
-    return formatJavaScript(snippet);
+    return snippet;
   },
 };
+
+export default snippet;

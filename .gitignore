@@ -1,4 +1,4 @@
 node_modules
-es
-lib
+es/
+lib/
 *.log
