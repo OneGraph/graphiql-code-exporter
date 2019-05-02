@@ -1,102 +1,277 @@
-import commentsFactory from '../../utils/commentsFactory';
+import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
+import commentsFactory from '../../utils/jsCommentsFactory.js';
+import {
+  findFirstNamedOperation,
+  isOperationNamed,
+  collapseExtraNewlines,
+  addLeftWhitespace,
+} from '../../utils';
+
+import 'codemirror/mode/javascript/javascript';
+
+import type {Snippet, OperationData} from 'graphiql-code-exporter';
+
+const snippetOptions = [
+  {
+    id: 'server',
+    label: 'server-side usage',
+    initial: false,
+  },
+  {
+    id: 'asyncAwait',
+    label: 'async/await',
+    initial: true,
+  },
+];
 
 const comments = {
+  setup: `This setup is only needed once per application`,
   nodeFetch: `Node doesn't implement fetch so we have to import it`,
-  graphqlError: `handle OneGraph errors`,
-  graphqlData: `do something with data`,
-  fetchError: `handle fetch error`,
+  graphqlError: `handle those errors like a pro`,
+  graphqlData: `do something great with this precious data`,
+  fetchError: `handle errors from fetch itself`
 };
 
-const snippet = {
+function generateDocumentQuery(
+  operationDataList: Array<OperationData>,
+): string {
+  const body = operationDataList
+    .map(operationData => operationData.query)
+    .join('\n\n')
+    .trim();
+
+  return `const operationsDoc = \`
+${addLeftWhitespace(body, 2)}
+\`;`;
+}
+
+const fetcherName = 'fetchGraphQL';
+
+function operationFunctionName(operationData: OperationData) {
+  const {type} = operationData;
+
+  const prefix =
+    type === 'query'
+      ? 'fetch'
+      : type === 'mutation'
+      ? 'execute'
+      : type === 'subscription'
+      ? 'subscribeTo'
+      : '';
+
+  const fnName =
+    prefix +
+    (prefix.length > 0
+      ? capitalizeFirstLetter(operationData.name)
+      : operationData.name);
+
+  return fnName;
+}
+
+// Promise-based functions
+function promiseFetcher(serverUrl: string, headers: string): string {
+  return `function ${fetcherName}(operationsDoc, operationName, variables) {
+  return fetch(
+    "${serverUrl}",
+    {
+      method: 'POST',
+      headers: {
+${addLeftWhitespace(headers, 8)}
+      },
+      body: JSON.stringify({
+        query: operationsDoc,
+        variables: variables,
+        operationName: operationName
+      })
+    }
+  ).then(res => res.json())
+};`;
+}
+
+function fetcherFunctions(operationDataList: Array<OperationData>): string {
+  return operationDataList
+    .map(operationData => {
+      const fnName = operationFunctionName(operationData);
+      const params = (
+        operationData.operationDefinition.variableDefinitions || []
+      ).map(def => def.variable.name.value);
+      const variablesBody = params
+        .map(param => `"${param}": ${param}`)
+        .join(' ');
+      const variables = `{${variablesBody}}`;
+      return `function ${fnName}(${params.join(', ')}) {
+  return ${fetcherName}(
+    operationsDoc,
+    "${operationData.name}",
+    ${variables}
+  )
+}`;
+    })
+    .join('\n\n');
+}
+
+function promiseFetcherInvocation(
+  getComment,
+  namedOperationData: OperationData,
+  vars,
+) {
+  const params = (
+    namedOperationData.operationDefinition.variableDefinitions || []
+  ).map(def => def.variable.name.value);
+  return `${operationFunctionName(namedOperationData)}(${params.join(', ')})
+  .then(({ data, errors }) => {
+    if (errors) {
+      ${getComment('graphqlError')}
+      console.error(errors)
+    }
+    ${getComment('graphqlData')}
+    console.log(data)
+  })
+  .catch(err => {
+    ${getComment('fetchError')}
+    console.error(err)
+  });`;
+}
+
+// Async-await-based functions
+function asyncFetcher(serverUrl, heads): string {
+  return `async function ${fetcherName}(operationsDoc, operationName, variables) {
+  const result = await fetch(
+    "${serverUrl}",
+    {
+      method: "POST",
+      headers: {
+${addLeftWhitespace(heads, 8)}
+      },
+      body: JSON.stringify({
+        query: operationsDoc,
+        variables: variables,
+        operationName: operationName
+      })
+    }
+  );
+
+  return await result.json();
+};`;
+}
+
+function asyncFetcherInvocation(
+  getComment,
+  namedOperationData: OperationData,
+  vars,
+) {
+  const params = (
+    namedOperationData.operationDefinition.variableDefinitions || []
+  ).map(def => def.variable.name.value);
+  return `async function start() {
+  const { errors, data } = await ${operationFunctionName(
+    namedOperationData,
+  )}(${params.map(param => `"${param}"`).join(', ')});
+
+  if (errors) {
+    ${getComment('graphqlError')}
+    console.error(errors)
+  };
+
+  ${getComment('graphqlData')}
+  console.log(data)
+};
+
+start()`;
+}
+
+// Snippet generation!
+const snippet: Snippet = {
   language: 'JavaScript',
-  prismLanguage: 'javascript',
+  codeMirrorMode: 'javascript',
   name: 'fetch',
-  options: [
-    {
-      id: 'comments',
-      label: 'show comments',
-      initial: false,
-    },
-    {
-      id: 'server',
-      label: 'server-side usage',
-      initial: false,
-    },
-    {
-      id: 'asyncAwait',
-      label: 'async/await',
-      initial: false,
-    },
-  ],
-  generate: ({serverUrl, headers, operations, context, options}) => {
-    const {variableName, variables, query} = operations[0];
+  options: snippetOptions,
+  generate: opts => {
+    const {serverUrl, headers, options} = opts;
 
-    console.log(operations);
+    const operationDataList = opts.operationDataList.map(
+      (operationData, idx) => {
+        if (!isOperationNamed(operationData)) {
+          return {
+            ...operationData,
+            name: `unnamed${capitalizeFirstLetter(operationData.type)}${idx +
+              1}`.trim(),
+            query:
+              `# Consider giving this ${
+                operationData.type
+              } a unique, descriptive
+# name in your application as a best practice
+${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
+                1} ` +
+              operationData.query
+                .trim()
+                .replace(/^(query|mutation|subscription) /i, ''),
+          };
+        } else {
+          return operationData;
+        }
+      },
+    );
 
-    const getComment = commentsFactory(options.comments, comments);
+    const namedOperation =
+      findFirstNamedOperation(opts.operationDataList) || operationDataList[0];
+
+    const getComment = commentsFactory(true, comments);
 
     const serverComment = options.server ? getComment('nodeFetch') : '';
     const serverImport = options.server
       ? `import fetch from "node-fetch"\n`
       : '';
 
-    const graphqlQuery = `const ${variableName} = \`
-${query}\``;
-    const urlVariable = `const serverUrl = "${serverUrl}"`;
-    const vars = JSON.stringify(variables, null, 2);
-    const heads = JSON.stringify(headers, null, 2);
-
-    let fetchBody;
-    if (options.asyncAwait) {
-      fetchBody = `
-    const res = await fetch(serverUrl, {
-      method: 'POST',
-      headers: ${heads},
-      body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
-    })
-    const { errors, data } = await res.json()
-
-    if (errors) {
-      ${getComment('graphqlError')}
-      console.error(errors)
+    const graphqlQuery = generateDocumentQuery(operationDataList);
+    const vars = JSON.stringify({}, null, 2);
+    const headersValues = [];
+    for (const k of Object.keys(headers)) {
+      if (k && headers[k]) {
+        headersValues.push(`"${k}": "${headers[k]}"`);
+      }
     }
+    const heads = headersValues.length ? `${headersValues.join(',\n')}` : '';
 
-    ${getComment('graphqlData')}
-    console.log(data)
-    `;
-    } else {
-      fetchBody = `fetch(serverUrl, {
-        method: 'POST',
-        headers: ${heads},
-        body: JSON.stringify({ query: ${variableName}, variables: ${vars} })
-      })
-        .then(res => res.json())
-        .then(({ data, errors }) => {
-          if (errors) {
-            ${getComment('graphqlError')}
-            console.error(errors)
-          }
+    const requiredDeps = [
+      options.server ? '"node-fetch": "2.3.0"' : null,
+    ].filter(Boolean);
 
-          ${getComment('graphqlData')}
-          console.log(data)
-        })
-        .catch(err => {
-          ${getComment('fetchError')}
-          console.error(err)
-        })
-      `;
-    }
+    const packageDeps =
+      requiredDeps.length > 0
+        ? `/*
+Add these to your \`package.json\`:
+${addLeftWhitespace(requiredDeps.join(',\n'), 2)}
+*/
+`
+        : '';
+
+    const fetcher = options.asyncAwait
+      ? asyncFetcher(serverUrl, heads)
+      : promiseFetcher(serverUrl, heads);
+
+    const fetcherFunctionsDefs = fetcherFunctions(operationDataList);
+
+    const fetcherInvocation = options.asyncAwait
+      ? asyncFetcherInvocation(getComment, namedOperation, vars)
+      : promiseFetcherInvocation(getComment, namedOperation, vars);
 
     const snippet = `
-    ${serverComment}
-    ${serverImport}
-    ${graphqlQuery}
+/* This is an example snippet - you should consider tailoring it to your
+   service. */
+${packageDeps}
+${serverComment}
+${serverImport}
 
-    ${urlVariable}
+${fetcher}
 
-    ${fetchBody}`;
+${graphqlQuery}
 
-    return snippet;
+${fetcherFunctionsDefs}
+
+${fetcherInvocation}`;
+
+    return collapseExtraNewlines(snippet.trim());
   },
 };
 
