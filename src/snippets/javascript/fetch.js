@@ -1,3 +1,5 @@
+// @flow
+
 import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 import commentsFactory from '../../utils/jsCommentsFactory.js';
 import {
@@ -9,7 +11,7 @@ import {
 
 import 'codemirror/mode/javascript/javascript';
 
-import type {Snippet, OperationData} from 'graphiql-code-exporter';
+import type {Snippet, OperationData} from '../../index.js';
 
 const snippetOptions = [
   {

@@ -11,9 +11,9 @@ export type {
 } from './CodeExporter';
 
 import capitalizeFirstLetter from './utils/capitalizeFirstLetter';
-import commentsFactory from './utils/commentsFactory';
+import jsCommentsFactory from './utils/jsCommentsFactory';
 import snippets from './snippets/index';
 
-export {capitalizeFirstLetter, commentsFactory, snippets};
+export {capitalizeFirstLetter, jsCommentsFactory, snippets};
 
 export default CodeExporter;

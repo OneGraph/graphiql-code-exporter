@@ -7,11 +7,11 @@ import {
   isOperationNamed,
   collapseExtraNewlines,
   addLeftWhitespace,
-} from '../../utils';
+} from '../../utils/index.js';
 
 import 'codemirror/mode/jsx/jsx';
 
-import type {Snippet, OperationData} from 'graphiql-code-exporter';
+import type {Snippet, OperationData} from '../../index.js';
 
 const comments = {
   setup: `This setup is only needed once per application`,
