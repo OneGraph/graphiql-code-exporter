@@ -450,7 +450,8 @@ class CodeExporter extends Component<Props, State> {
             <div>
               The query is invalid.
               <br />
-              The generated code will appear here once the errors in the query editor are resolved.
+              The generated code will appear here once the errors in the query
+              editor are resolved.
             </div>
           )}
         </div>

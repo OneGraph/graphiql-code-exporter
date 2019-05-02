@@ -1,6 +1,6 @@
 {
   "name": "graphiql-code-exporter",
-  "version": "2.0.2",
+  "version": "2.0.4",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -18,9 +18,17 @@
     "build:clean": "rm -r ./lib && mkdir ./lib && rm -r ./es && mkdir ./es",
     "build:flow:es": "flow-copy-source -v -i '**/__tests__/**' src es",
     "build:flow:lib": "flow-copy-source -v -i '**/__tests__/**' src lib",
+    "prettier": "prettier --write \"src/**/*.js\" \"docs/**/*.md\" README.md",
     "release": "yarn build && npm publish",
     "test": "yarn flow && cross-env BABEL_ENV=commonjs jest",
     "flow": "flow"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "bracketSpacing": false,
+    "jsxBracketSameLine": true,
+    "printWidth": 80
   },
   "repository": {
     "type": "git",
