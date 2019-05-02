@@ -53,10 +53,10 @@ function operationComponentName(operationData: OperationData): string {
     type === 'query'
       ? 'Query'
       : type === 'mutation'
-      ? 'Mutation'
-      : type === 'subscription'
-      ? 'Subscription'
-      : '';
+        ? 'Mutation'
+        : type === 'subscription'
+          ? 'Subscription'
+          : '';
 
   return suffix.length > 0
     ? '' + capitalizeFirstLetter(operationData.name) + suffix
@@ -220,7 +220,7 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
 `;
 
     const clientSetup = options.client
-      ? `${getComment("setup")};
+      ? `${getComment('setup')};
 const apolloClient = new ApolloClient({
   cache: new InMemoryCache(),
   link: new HttpLink({
@@ -244,7 +244,9 @@ const apolloClient = new ApolloClient({
     )} } from "react-apollo";`;
     const reactImports = `import React from "react";
 import ReactDOM from "react-dom";
-import { ${options.client ? "ApolloClient, " : "" }InMemoryCache, HttpLink } from "apollo-boost";`;
+import { ${
+      options.client ? 'ApolloClient, ' : ''
+    }InMemoryCache, HttpLink } from "apollo-boost";`;
 
     const gqlImport = 'import gql from "graphql-tag";';
 
@@ -260,11 +262,11 @@ ${reactApolloImports}`
           operationData.type === 'query'
             ? queryComponent
             : operationData.type === 'mutation'
-            ? mutationComponent
-            : () =>
-                `"We don't support ${
-                  operationData.type
-                } GraphQL operations yet"`;
+              ? mutationComponent
+              : () =>
+                  `"We don't support ${
+                    operationData.type
+                  } GraphQL operations yet"`;
 
         const graphqlOperation = `const ${operationVariableName(
           operationData,
@@ -277,17 +279,17 @@ ${addLeftWhitespace(operationData.query, 2)}
 const ${operationComponentName(operationData)} = (props) => {
   return (
 ${addLeftWhitespace(
-  componentFn(
-    // $FlowFixMe: Add flow type to utils fn
-    getComment,
-    options,
-    element,
-    operationData,
-    heads,
-    vars,
-  ),
-  4,
-)}
+          componentFn(
+            // $FlowFixMe: Add flow type to utils fn
+            getComment,
+            options,
+            element,
+            operationData,
+            heads,
+            vars,
+          ),
+          4,
+        )}
   )
 };`;
 

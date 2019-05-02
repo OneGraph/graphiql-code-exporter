@@ -29,7 +29,7 @@ const comments = {
   nodeFetch: `Node doesn't implement fetch so we have to import it`,
   graphqlError: `handle those errors like a pro`,
   graphqlData: `do something great with this precious data`,
-  fetchError: `handle errors from fetch itself`
+  fetchError: `handle errors from fetch itself`,
 };
 
 function generateDocumentQuery(
@@ -54,10 +54,10 @@ function operationFunctionName(operationData: OperationData) {
     type === 'query'
       ? 'fetch'
       : type === 'mutation'
-      ? 'execute'
-      : type === 'subscription'
-      ? 'subscribeTo'
-      : '';
+        ? 'execute'
+        : type === 'subscription'
+          ? 'subscribeTo'
+          : '';
 
   const fnName =
     prefix +
