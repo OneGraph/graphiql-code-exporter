@@ -122,7 +122,7 @@ function promiseFetcherInvocation(
   ).map(def => def.variable.name.value);
   const variables = Object.entries(
     namedOperationData.variables || {}
-  ).map(([key, value]) => `const ${key} = ${value};`);
+  ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
   return `${variables.join('\n')}
 
 ${operationFunctionName(namedOperationData)}(${params.join(', ')})
@@ -172,7 +172,7 @@ function asyncFetcherInvocation(
   ).map(def => def.variable.name.value);
   const variables = Object.entries(
     namedOperationData.variables || {}
-  ).map(([key, value]) => `const ${key} = ${value};`);
+  ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
   return `async function start(${params.join(', ')}) {
   const { errors, data } = await ${operationFunctionName(
     namedOperationData,
