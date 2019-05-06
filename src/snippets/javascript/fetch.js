@@ -114,16 +114,18 @@ function fetcherFunctions(operationDataList: Array<OperationData>): string {
 
 function promiseFetcherInvocation(
   getComment,
-  namedOperationData: OperationData,
+  operationDataList: Array<OperationData>,
   vars,
-) {
-  const params = (
-    namedOperationData.operationDefinition.variableDefinitions || []
-  ).map(def => def.variable.name.value);
-  const variables = Object.entries(
-    namedOperationData.variables || {}
-  ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
-  return `${variables.join('\n')}
+): string {
+  return operationDataList
+    .map(namedOperationData =>  {
+      const params = (
+        namedOperationData.operationDefinition.variableDefinitions || []
+      ).map(def => def.variable.name.value);
+      const variables = Object.entries(
+        namedOperationData.variables || {}
+      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+      return `${variables.join('\n')}
 
 ${operationFunctionName(namedOperationData)}(${params.join(', ')})
   .then(({ data, errors }) => {
@@ -138,6 +140,8 @@ ${operationFunctionName(namedOperationData)}(${params.join(', ')})
     ${getComment('fetchError')}
     console.error(error);
   });`;
+    })
+    .join('\n\n');
 }
 
 // Async-await-based functions
@@ -164,16 +168,20 @@ ${addLeftWhitespace(headers, 8)}
 
 function asyncFetcherInvocation(
   getComment,
-  namedOperationData: OperationData,
+  operationDataList: Array<OperationData>,
   vars,
-) {
-  const params = (
-    namedOperationData.operationDefinition.variableDefinitions || []
-  ).map(def => def.variable.name.value);
-  const variables = Object.entries(
-    namedOperationData.variables || {}
-  ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
-  return `async function start(${params.join(', ')}) {
+): string {
+  return operationDataList
+    .map(namedOperationData =>  {
+      const params = (
+        namedOperationData.operationDefinition.variableDefinitions || []
+      ).map(def => def.variable.name.value);
+      const variables = Object.entries(
+        namedOperationData.variables || {}
+      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+      return `async function start${capitalizeFirstLetter(operationFunctionName(
+        namedOperationData,
+      ))}(${params.join(', ')}) {
   const { errors, data } = await ${operationFunctionName(
     namedOperationData,
   )}(${params.join(', ')});
@@ -189,7 +197,11 @@ function asyncFetcherInvocation(
 
 ${variables.join('\n')}
 
-start(${params.join(', ')});`;
+start${capitalizeFirstLetter(operationFunctionName(
+  namedOperationData,
+))}(${params.join(', ')});`;
+    })
+    .join('\n\n');
 }
 
 // Snippet generation!
@@ -265,8 +277,8 @@ ${addLeftWhitespace(requiredDeps.join(',\n'), 2)}
     const fetcherFunctionsDefs = fetcherFunctions(operationDataList);
 
     const fetcherInvocation = options.asyncAwait
-      ? asyncFetcherInvocation(getComment, namedOperation, vars)
-      : promiseFetcherInvocation(getComment, namedOperation, vars);
+      ? asyncFetcherInvocation(getComment, operationDataList, vars)
+      : promiseFetcherInvocation(getComment, operationDataList, vars);
 
     const snippet = `
 /*
