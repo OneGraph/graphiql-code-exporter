@@ -311,7 +311,7 @@ ${addLeftWhitespace(
       .map(operationData => {
         const variables = Object.entries(
           operationData.variables || {}
-        ).map(([key, value]) => `const ${key} = ${value};`);
+        ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
 
         return `${variables.join('\n')}`;
       })
