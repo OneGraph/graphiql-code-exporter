@@ -37,10 +37,10 @@ function operationVariables(operationData: OperationData) {
   const params = (
     operationData.operationDefinition.variableDefinitions || []
   ).map(def => def.variable.name.value);
-  const variablesBody = params.map(param => `"${param}": ${param}`).join(' ');
+  const variablesBody = params.map(param => `"${param}": ${param}`).join(', ');
   const variables = `{${variablesBody}}`;
 
-  const propsBody = params.map(param => `"${param}": props.${param}`).join(' ');
+  const propsBody = params.map(param => `"${param}": props.${param}`).join(', ');
   const props = `{${propsBody}}`;
 
   return {params, variables, props};
@@ -204,17 +204,17 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
     const vars = JSON.stringify({}, null, 2);
     const headersValues = [...Object.keys(headers || [])]
       .filter(k => headers[k])
-      .map(k => `"${k}": ${headers[k]}`)
-      .join('\n');
+      .map(k => `"${k}": "${headers[k]}"`)
+      .join(',\n');
 
     const heads = `{${headersValues}}`;
 
     const packageDeps = `/*
   Add these to your \`package.json\`:
-    "apollo-boost": "0.1.27",
-    "graphql": "14.1.1",
-    "graphql-tag": "2.10.1",
-    "react-apollo": "2.4.1"
+    "apollo-boost": "^0.3.1",
+    "graphql": "^14.2.1",
+    "graphql-tag": "^2.10.0",
+    "react-apollo": "^2.5.5"
 */
 
 `;
@@ -226,7 +226,7 @@ const apolloClient = new ApolloClient({
   link: new HttpLink({
     uri: "${serverUrl}",
   }),
-})\n`
+});\n`
       : '';
 
     const operationTypes = distinct(
@@ -301,20 +301,34 @@ ${addLeftWhitespace(
       .map(operationData => {
         const {params} = operationVariables(operationData);
 
-        const props = params.map(param => `${param}={null}`).join(' ');
+        const props = params.map(param => `${param}={${param}}`).join(' ');
 
-        return `<${operationComponentName(operationData)} ${props}/>`;
+        return `<${operationComponentName(operationData)} ${props} />`;
       })
-      .join(' <hr /> ');
+      .join('\n');
 
-    const containerComponent = `const container = (
+    const variableInstantiations = operationDataList
+      .map(operationData => {
+        const variables = Object.entries(
+          operationData.variables || {}
+        ).map(([key, value]) => `const ${key} = ${value};`);
+
+        return `${variables.join('\n')}`;
+      })
+      .join('\n\n');
+
+    const containerComponent = `${variableInstantiations}
+
+const container = (
   <ApolloProvider client={apolloClient}>
-    ${componentInstantiations}
+${addLeftWhitespace(componentInstantiations, 4)}
   </ApolloProvider>
 );`;
 
-    const snippet = `/* This is an example snippet - you should consider tailoring it to your
-   service. */
+    const snippet = `
+/* This is an example snippet - you should consider tailoring it
+to your service.
+*/
 ${packageDeps}${generalImports}
 
 ${clientSetup}
