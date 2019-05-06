@@ -232,7 +232,7 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
 
     const serverComment = options.server ? getComment('nodeFetch') : '';
     const serverImport = options.server
-      ? `import fetch from 'node-fetch';\n`
+      ? `import fetch from "node-fetch";\n`
       : '';
 
     const graphqlQuery = generateDocumentQuery(operationDataList);
