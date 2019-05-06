@@ -295,7 +295,7 @@ ${addLeftWhitespace(
 
         return component;
       })
-      .join(';\n\n');
+      .join('\n\n');
 
     const componentInstantiations = operationDataList
       .map(operationData => {
