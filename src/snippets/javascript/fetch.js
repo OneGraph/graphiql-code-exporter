@@ -76,18 +76,18 @@ function promiseFetcher(serverUrl: string, headers: string): string {
   return fetch(
     "${serverUrl}",
     {
-      method: 'POST',
+      method: "POST",${headers ? `
       headers: {
 ${addLeftWhitespace(headers, 8)}
-      },
+      },` : ''}
       body: JSON.stringify({
         query: operationsDoc,
         variables: variables,
         operationName: operationName
       })
     }
-  ).then(res => res.json())
-};`;
+  ).then((result) => result.json());
+}`;
 }
 
 function fetcherFunctions(operationDataList: Array<OperationData>): string {
@@ -99,14 +99,14 @@ function fetcherFunctions(operationDataList: Array<OperationData>): string {
       ).map(def => def.variable.name.value);
       const variablesBody = params
         .map(param => `"${param}": ${param}`)
-        .join(' ');
+        .join(', ');
       const variables = `{${variablesBody}}`;
       return `function ${fnName}(${params.join(', ')}) {
   return ${fetcherName}(
     operationsDoc,
     "${operationData.name}",
     ${variables}
-  )
+  );
 }`;
     })
     .join('\n\n');
@@ -114,37 +114,46 @@ function fetcherFunctions(operationDataList: Array<OperationData>): string {
 
 function promiseFetcherInvocation(
   getComment,
-  namedOperationData: OperationData,
+  operationDataList: Array<OperationData>,
   vars,
-) {
-  const params = (
-    namedOperationData.operationDefinition.variableDefinitions || []
-  ).map(def => def.variable.name.value);
-  return `${operationFunctionName(namedOperationData)}(${params.join(', ')})
+): string {
+  return operationDataList
+    .map(namedOperationData =>  {
+      const params = (
+        namedOperationData.operationDefinition.variableDefinitions || []
+      ).map(def => def.variable.name.value);
+      const variables = Object.entries(
+        namedOperationData.variables || {}
+      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+      return `${variables.join('\n')}
+
+${operationFunctionName(namedOperationData)}(${params.join(', ')})
   .then(({ data, errors }) => {
     if (errors) {
       ${getComment('graphqlError')}
-      console.error(errors)
+      console.error(errors);
     }
     ${getComment('graphqlData')}
-    console.log(data)
+    console.log(data);
   })
-  .catch(err => {
+  .catch((error) => {
     ${getComment('fetchError')}
-    console.error(err)
+    console.error(error);
   });`;
+    })
+    .join('\n\n');
 }
 
 // Async-await-based functions
-function asyncFetcher(serverUrl, heads): string {
+function asyncFetcher(serverUrl: string, headers: string): string {
   return `async function ${fetcherName}(operationsDoc, operationName, variables) {
   const result = await fetch(
     "${serverUrl}",
     {
-      method: "POST",
+      method: "POST",${headers ? `
       headers: {
-${addLeftWhitespace(heads, 8)}
-      },
+${addLeftWhitespace(headers, 8)}
+      },` : ''}
       body: JSON.stringify({
         query: operationsDoc,
         variables: variables,
@@ -154,32 +163,45 @@ ${addLeftWhitespace(heads, 8)}
   );
 
   return await result.json();
-};`;
+}`;
 }
 
 function asyncFetcherInvocation(
   getComment,
-  namedOperationData: OperationData,
+  operationDataList: Array<OperationData>,
   vars,
-) {
-  const params = (
-    namedOperationData.operationDefinition.variableDefinitions || []
-  ).map(def => def.variable.name.value);
-  return `async function start() {
+): string {
+  return operationDataList
+    .map(namedOperationData =>  {
+      const params = (
+        namedOperationData.operationDefinition.variableDefinitions || []
+      ).map(def => def.variable.name.value);
+      const variables = Object.entries(
+        namedOperationData.variables || {}
+      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+      return `async function start${capitalizeFirstLetter(operationFunctionName(
+        namedOperationData,
+      ))}(${params.join(', ')}) {
   const { errors, data } = await ${operationFunctionName(
     namedOperationData,
-  )}(${params.map(param => `"${param}"`).join(', ')});
+  )}(${params.join(', ')});
 
   if (errors) {
     ${getComment('graphqlError')}
-    console.error(errors)
-  };
+    console.error(errors);
+  }
 
   ${getComment('graphqlData')}
-  console.log(data)
-};
+  console.log(data);
+}
 
-start()`;
+${variables.join('\n')}
+
+start${capitalizeFirstLetter(operationFunctionName(
+  namedOperationData,
+))}(${params.join(', ')});`;
+    })
+    .join('\n\n');
 }
 
 // Snippet generation!
@@ -222,7 +244,7 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
 
     const serverComment = options.server ? getComment('nodeFetch') : '';
     const serverImport = options.server
-      ? `import fetch from "node-fetch"\n`
+      ? `import fetch from "node-fetch";\n`
       : '';
 
     const graphqlQuery = generateDocumentQuery(operationDataList);
@@ -236,7 +258,7 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
     const heads = headersValues.length ? `${headersValues.join(',\n')}` : '';
 
     const requiredDeps = [
-      options.server ? '"node-fetch": "2.3.0"' : null,
+      options.server ? '"node-fetch": "^2.5.0"' : null,
     ].filter(Boolean);
 
     const packageDeps =
@@ -255,12 +277,14 @@ ${addLeftWhitespace(requiredDeps.join(',\n'), 2)}
     const fetcherFunctionsDefs = fetcherFunctions(operationDataList);
 
     const fetcherInvocation = options.asyncAwait
-      ? asyncFetcherInvocation(getComment, namedOperation, vars)
-      : promiseFetcherInvocation(getComment, namedOperation, vars);
+      ? asyncFetcherInvocation(getComment, operationDataList, vars)
+      : promiseFetcherInvocation(getComment, operationDataList, vars);
 
     const snippet = `
-/* This is an example snippet - you should consider tailoring it to your
-   service. */
+/*
+This is an example snippet - you should consider tailoring it
+to your service.
+*/
 ${packageDeps}
 ${serverComment}
 ${serverImport}
