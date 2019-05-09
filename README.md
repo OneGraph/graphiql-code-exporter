@@ -24,15 +24,8 @@ npm i --save graphiql-code-exporter
 - **JavaScript**
   - fetch
   - react-apollo
-  - react-with-hooks
-- **Python**
-  - graphqlclient
-  - sgqlc
-- **Reason**
-  - reason-apollo
-  - bs-fetch
-- **Ruby**
-  - graphql-client
+
+[ < your favorite language/framework/library > ](https://github.com/OneGraph/graphiql-code-exporter/pulls)
 
 ## Usage
 
