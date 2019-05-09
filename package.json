@@ -1,6 +1,6 @@
 {
   "name": "graphiql-code-exporter",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Export working code snippets from GraphiQL queries",
   "main": "lib/index.js",
   "module": "es/index.js",
