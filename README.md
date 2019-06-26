@@ -7,7 +7,7 @@ It provides a wide range of default snippets, but is also extendable with custom
 
 ![Demo](demo.gif)
 
-> Read the [introduction blog post]() to learn why and how we built it!
+> Read the [introduction blog post](https://www.onegraph.com/blog/2019/05/03_Filling_in_the_GraphQL_Pipeline_Ready_to_use_code_generation.html) to learn why and how we built it!
 
 ## Installation
 
