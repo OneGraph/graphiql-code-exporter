@@ -118,16 +118,11 @@ function promiseFetcherInvocation(
   vars,
 ): string {
   return operationDataList
-    .map(namedOperationData =>  {
+    .map(namedOperationData => {
       const params = (
         namedOperationData.operationDefinition.variableDefinitions || []
       ).map(def => def.variable.name.value);
-      const variables = Object.entries(
-        namedOperationData.variables || {}
-      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
-      return `${variables.join('\n')}
-
-${operationFunctionName(namedOperationData)}(${params.join(', ')})
+      return `${operationFunctionName(namedOperationData)}(${params.join(', ')})
   .then(({ data, errors }) => {
     if (errors) {
       ${getComment('graphqlError')}
@@ -172,13 +167,10 @@ function asyncFetcherInvocation(
   vars,
 ): string {
   return operationDataList
-    .map(namedOperationData =>  {
+    .map(namedOperationData => {
       const params = (
         namedOperationData.operationDefinition.variableDefinitions || []
       ).map(def => def.variable.name.value);
-      const variables = Object.entries(
-        namedOperationData.variables || {}
-      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
       return `async function start${capitalizeFirstLetter(operationFunctionName(
         namedOperationData,
       ))}(${params.join(', ')}) {
@@ -194,8 +186,6 @@ function asyncFetcherInvocation(
   ${getComment('graphqlData')}
   console.log(data);
 }
-
-${variables.join('\n')}
 
 start${capitalizeFirstLetter(operationFunctionName(
   namedOperationData,
@@ -276,6 +266,15 @@ ${addLeftWhitespace(requiredDeps.join(',\n'), 2)}
 
     const fetcherFunctionsDefs = fetcherFunctions(operationDataList);
 
+    const variableInstantiations = Object.entries(Object.assign({}, ...operationDataList.map(operationData => {
+      const variableDefaultValues = Object.fromEntries((operationData.operationDefinition.variableDefinitions || {}).filter((variableDefinition) => variableDefinition.defaultValue).map((variableDefinition) => [variableDefinition.variable.name.value, variableDefinition.defaultValue.value]));
+      const variableValues = operationData.variables || {};
+      return {
+        ...variableDefaultValues,
+        ...variableValues
+      };
+    }))).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`).join('\n');
+
     const fetcherInvocation = options.asyncAwait
       ? asyncFetcherInvocation(getComment, operationDataList, vars)
       : promiseFetcherInvocation(getComment, operationDataList, vars);
@@ -294,6 +293,8 @@ ${fetcher}
 ${graphqlQuery}
 
 ${fetcherFunctionsDefs}
+
+${variableInstantiations}
 
 ${fetcherInvocation}`;
 

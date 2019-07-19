@@ -307,15 +307,14 @@ ${addLeftWhitespace(
       })
       .join('\n');
 
-    const variableInstantiations = operationDataList
-      .map(operationData => {
-        const variables = Object.entries(
-          operationData.variables || {}
-        ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
-
-        return `${variables.join('\n')}`;
-      })
-      .join('\n\n');
+    const variableInstantiations = Object.entries(Object.assign({}, ...operationDataList.map(operationData => {
+      const variableDefaultValues = Object.fromEntries((operationData.operationDefinition.variableDefinitions || {}).filter((variableDefinition) => variableDefinition.defaultValue).map((variableDefinition) => [variableDefinition.variable.name.value, variableDefinition.defaultValue.value]));
+      const variableValues = operationData.variables || {};
+      return {
+        ...variableDefaultValues,
+        ...variableValues
+      };
+    }))).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`).join('\n');
 
     const containerComponent = `${variableInstantiations}
 
