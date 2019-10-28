@@ -644,6 +644,7 @@ type WrapperProps = {
   onSelectSnippet?: (snippet: Snippet) => void,
   onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
   optionValues?: OptionValues,
+  onGenerateCodesandbox?: ?({sandboxId: string}) => void,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
@@ -661,6 +662,7 @@ export default function CodeExporterWrapper({
   onSelectSnippet,
   onSetOptionValue,
   optionValues,
+  onGenerateCodesandbox,
 }: WrapperProps) {
   let jsonVariables: Variables = {};
 
@@ -704,6 +706,7 @@ export default function CodeExporterWrapper({
               onSelectSnippet={onSelectSnippet}
               onSetOptionValue={onSetOptionValue}
               optionValues={optionValues || {}}
+              onGenerateCodesandbox={onGenerateCodesandbox}
             />
           </ErrorBoundary>
         ) : (
