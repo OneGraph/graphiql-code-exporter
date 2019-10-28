@@ -286,7 +286,11 @@ type State = {|
   showCopiedTooltip: boolean,
   optionValuesBySnippet: Map<Snippet, OptionValues>,
   snippet: ?Snippet,
-  codesandboxResult: ?('loading' | {sandboxId: string} | {error: string}),
+  codesandboxResult:
+    | null
+    | {type: 'loading'}
+    | {type: 'success', sandboxId: string}
+    | {type: 'error', error: string},
 |};
 
 class CodeExporter extends Component<Props, State> {
@@ -295,7 +299,7 @@ class CodeExporter extends Component<Props, State> {
     showCopiedTooltip: false,
     optionValuesBySnippet: new Map(),
     snippet: null,
-    cdoesandboxResult: null,
+    codesandboxResult: null,
   };
 
   _activeSnippet = (): Snippet =>
@@ -303,7 +307,7 @@ class CodeExporter extends Component<Props, State> {
 
   setSnippet = (snippet: Snippet) => {
     this.props.onSelectSnippet && this.props.onSelectSnippet(snippet);
-    this.setState({snippet, codesandboxState: null});
+    this.setState({snippet, codesandboxResult: null});
   };
 
   setLanguage = (language: string) => {
@@ -339,18 +343,23 @@ class CodeExporter extends Component<Props, State> {
   };
 
   _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
-    this.setState({codesandboxResult: 'loading'});
+    this.setState({codesandboxResult: {type: 'loading'}});
     const snippet = this._activeSnippet();
     if (!snippet) {
       // Shouldn't be able to get in this state, but just in case...
-      this.setState({codesandboxResult: {error: 'No active snippet'}});
+      this.setState({
+        codesandboxResult: {type: 'error', error: 'No active snippet'},
+      });
       return;
     }
     const generateFiles = snippet.generateCodesandboxFiles;
     if (!generateFiles) {
       // Shouldn't be able to get in this state, but just in case...
       this.setState({
-        codesandboxResult: {error: 'Snippet does not support CodeSandbox'},
+        codesandboxResult: {
+          type: 'error',
+          error: 'Snippet does not support CodeSandbox',
+        },
       });
       return;
     }
@@ -359,14 +368,17 @@ class CodeExporter extends Component<Props, State> {
         generateFiles(this._collectOptions(snippet, operationDataList)),
       );
       this.setState({
-        codesandboxResult: sandboxResult,
+        codesandboxResult: {type: 'success', ...sandboxResult},
       });
       this.props.onGenerateCodesandbox &&
         this.props.onGenerateCodesandbox(sandboxResult);
     } catch (e) {
       console.error('Error generating codesandbox', e);
       this.setState({
-        codesandboxResult: {error: 'Failed to generate CodeSandbox'},
+        codesandboxResult: {
+          type: 'error',
+          error: 'Failed to generate CodeSandbox',
+        },
       });
     }
   };
@@ -388,7 +400,7 @@ class CodeExporter extends Component<Props, State> {
 
   render() {
     const {query, snippets, variables = {}} = this.props;
-    const {showCopiedTooltip} = this.state;
+    const {showCopiedTooltip, codesandboxResult} = this.state;
 
     const snippet = this._activeSnippet();
     const operationDefinitions = getOperationNodes(query);
@@ -501,18 +513,18 @@ class CodeExporter extends Component<Props, State> {
                 {codesandboxIcon}{' '}
                 <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
               </button>
-              {this.state.codesandboxResult ? (
+              {codesandboxResult ? (
                 <div style={{paddingLeft: 5, paddingTop: 5}}>
-                  {this.state.codesandboxResult === 'loading' ? (
+                  {codesandboxResult.type === 'loading' ? (
                     'Loading...'
-                  ) : this.state.codesandboxResult.error ? (
-                    `Error: ${this.state.codesandboxResult.error}`
+                  ) : codesandboxResult.type === 'error' ? (
+                    `Error: ${codesandboxResult.error}`
                   ) : (
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
                       href={`https://codesandbox.io/s/${
-                        this.state.codesandboxResult.sandboxId
+                        codesandboxResult.sandboxId
                       }`}>
                       Visit CodeSandbox
                     </a>
