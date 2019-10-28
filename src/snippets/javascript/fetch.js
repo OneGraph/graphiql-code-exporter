@@ -3,7 +3,6 @@
 import capitalizeFirstLetter from '../../utils/capitalizeFirstLetter';
 import commentsFactory from '../../utils/jsCommentsFactory.js';
 import {
-  findFirstNamedOperation,
   isOperationNamed,
   collapseExtraNewlines,
   addLeftWhitespace,
@@ -56,10 +55,10 @@ function operationFunctionName(operationData: OperationData) {
     type === 'query'
       ? 'fetch'
       : type === 'mutation'
-        ? 'execute'
-        : type === 'subscription'
-          ? 'subscribeTo'
-          : '';
+      ? 'execute'
+      : type === 'subscription'
+      ? 'subscribeTo'
+      : '';
 
   const fnName =
     prefix +
@@ -76,10 +75,14 @@ function promiseFetcher(serverUrl: string, headers: string): string {
   return fetch(
     "${serverUrl}",
     {
-      method: "POST",${headers ? `
+      method: "POST",${
+        headers
+          ? `
       headers: {
 ${addLeftWhitespace(headers, 8)}
-      },` : ''}
+      },`
+          : ''
+      }
       body: JSON.stringify({
         query: operationsDoc,
         variables: variables,
@@ -118,13 +121,13 @@ function promiseFetcherInvocation(
   vars,
 ): string {
   return operationDataList
-    .map(namedOperationData =>  {
+    .map(namedOperationData => {
       const params = (
         namedOperationData.operationDefinition.variableDefinitions || []
       ).map(def => def.variable.name.value);
-      const variables = Object.entries(
-        namedOperationData.variables || {}
-      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+      const variables = Object.entries(namedOperationData.variables || {}).map(
+        ([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`,
+      );
       return `${variables.join('\n')}
 
 ${operationFunctionName(namedOperationData)}(${params.join(', ')})
@@ -150,10 +153,14 @@ function asyncFetcher(serverUrl: string, headers: string): string {
   const result = await fetch(
     "${serverUrl}",
     {
-      method: "POST",${headers ? `
+      method: "POST",${
+        headers
+          ? `
       headers: {
 ${addLeftWhitespace(headers, 8)}
-      },` : ''}
+      },`
+          : ''
+      }
       body: JSON.stringify({
         query: operationsDoc,
         variables: variables,
@@ -172,16 +179,16 @@ function asyncFetcherInvocation(
   vars,
 ): string {
   return operationDataList
-    .map(namedOperationData =>  {
+    .map(namedOperationData => {
       const params = (
         namedOperationData.operationDefinition.variableDefinitions || []
       ).map(def => def.variable.name.value);
-      const variables = Object.entries(
-        namedOperationData.variables || {}
-      ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
-      return `async function start${capitalizeFirstLetter(operationFunctionName(
-        namedOperationData,
-      ))}(${params.join(', ')}) {
+      const variables = Object.entries(namedOperationData.variables || {}).map(
+        ([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`,
+      );
+      return `async function start${capitalizeFirstLetter(
+        operationFunctionName(namedOperationData),
+      )}(${params.join(', ')}) {
   const { errors, data } = await ${operationFunctionName(
     namedOperationData,
   )}(${params.join(', ')});
@@ -197,9 +204,9 @@ function asyncFetcherInvocation(
 
 ${variables.join('\n')}
 
-start${capitalizeFirstLetter(operationFunctionName(
-  namedOperationData,
-))}(${params.join(', ')});`;
+start${capitalizeFirstLetter(
+        operationFunctionName(namedOperationData),
+      )}(${params.join(', ')});`;
     })
     .join('\n\n');
 }
@@ -237,9 +244,6 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
       },
     );
 
-    const namedOperation =
-      findFirstNamedOperation(opts.operationDataList) || operationDataList[0];
-
     const getComment = commentsFactory(true, comments);
 
     const serverComment = options.server ? getComment('nodeFetch') : '';
@@ -250,9 +254,9 @@ ${operationData.type} unnamed${capitalizeFirstLetter(operationData.type)}${idx +
     const graphqlQuery = generateDocumentQuery(operationDataList);
     const vars = JSON.stringify({}, null, 2);
     const headersValues = [];
-    for (const k of Object.keys(headers)) {
-      if (k && headers[k]) {
-        headersValues.push(`"${k}": "${headers[k]}"`);
+    for (const header of Object.keys(headers)) {
+      if (header && headers[header]) {
+        headersValues.push(`"${header}": "${headers[header]}"`);
       }
     }
     const heads = headersValues.length ? `${headersValues.join(',\n')}` : '';

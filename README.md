@@ -108,13 +108,14 @@ export default class GraphiQLWithCodeExporter extends Component {
 
 What we call **snippet** here, is actually an object with 4 required keys.
 
-| Key            | Type       | Description                                                                                                                                                       |
-| -------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name           | _string_   | A name that is used to identify the snippet.                                                                                                                      |
-| language       | _string_   | A language string that is used to group the snippets by language.                                                                                                 |
-| codeMirrorMode | _string_   | A valid [CodeMirror mode](https://codemirror.net/mode/) used for syntax highlighting. Make sure to also require the mode (e.g. `import 'codemirror/mode/jsx/jsx'` |
-| options        | _Option[]_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false.      |
-| generate       | _Function_ | A function that returns the generated code as a single string. It receives below listed data as an object.                                                        |
+| Key                      | Type       | Description                                                                                                                                                       |
+|--------------------------|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                     | _string_   | A name that is used to identify the snippet.                                                                                                                      |
+| language                 | _string_   | A language string that is used to group the snippets by language.                                                                                                 |
+| codeMirrorMode           | _string_   | A valid [CodeMirror mode](https://codemirror.net/mode/) used for syntax highlighting. Make sure to also require the mode (e.g. `import 'codemirror/mode/jsx/jsx'` |
+| options                  | _Option[]_ | Options are rendered as checkboxes and can be used to customize snippets. They must have an unique id, a label and an initial value of either true or false.      |
+| generate                 | _Function_ | A function that returns the generated code as a single string. It receives below listed data as an object.                                                        |
+| generateCodesandboxFiles | _Function_ | A function that returns a set of codesandbox files, e.g. `{'index.js': {content: 'console.log("hello world")'}}`. It receives below listed data as an object.     |
 
 #### Snippet Data
 
