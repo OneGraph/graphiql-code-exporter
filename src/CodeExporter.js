@@ -35,6 +35,23 @@ const copyIcon = (
   </svg>
 );
 
+const codesandboxIcon = (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 256 296"
+    version="1.1"
+    xmlns="http://www.w3.org/2000/svg"
+    preserveAspectRatio="xMidYMid">
+    <g>
+      <path
+        d="M115.497674,261.08837 L115.497674,154.478845 L23.8139535,101.729261 L23.8139535,162.501763 L65.8104558,186.8486 L65.8104558,232.549219 L115.497674,261.08837 Z M139.311628,261.714907 L189.916577,232.563707 L189.916577,185.779949 L232.186047,161.285235 L232.186047,101.27387 L139.311628,154.895035 L139.311628,261.714907 Z M219.971965,80.8276886 L171.155386,52.5391067 L128.292316,77.4106841 L85.1040206,52.5141067 L35.8521355,81.1812296 L127.765737,134.063073 L219.971965,80.8276886 Z M0,222.211907 L0,74.4948807 L127.986799,0 L256,74.1820085 L256,221.978632 L127.983954,295.72283 L0,222.211907 Z"
+        fill="#000000"
+      />
+    </g>
+  </svg>
+);
+
 export type Variables = {[key: string]: ?mixed};
 
 // TODO: Need clearer separation between option defs and option values
@@ -60,13 +77,44 @@ export type GenerateOptions = {
   options: OptionValues,
 };
 
+export type CodesandboxFile = {
+  content: string | mixed,
+};
+
+export type CodesandboxFiles = {
+  [filename: string]: CodesandboxFile,
+};
+
 export type Snippet = {
   options: Options,
   language: string,
   codeMirrorMode: string,
   name: string,
   generate: (options: GenerateOptions) => string,
+  generateCodesandboxFiles?: ?(options: GenerateOptions) => CodesandboxFiles,
 };
+
+async function createCodesandbox(
+  files: CodesandboxFiles,
+): Promise<{sandboxId: string}> {
+  const res = await fetch(
+    'https://codesandbox.io/api/v1/sandboxes/define?json=1',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({files}),
+    },
+  );
+  const json = await res.json();
+  if (!json.sandbox_id) {
+    throw new Error('Invalid response from Codesandbox API');
+  } else {
+    return {sandboxId: json.sandbox_id};
+  }
+}
 
 let operationNodesMemo: [?string, ?Array<OperationDefinitionNode>] = [
   null,
@@ -232,11 +280,17 @@ type Props = {|
   codeMirrorTheme: ?string,
   onSelectSnippet: ?(snippet: Snippet) => void,
   onSetOptionValue: ?(snippet: Snippet, option: string, value: boolean) => void,
+  onGenerateCodesandbox?: ?({sandboxId: string}) => void,
 |};
 type State = {|
   showCopiedTooltip: boolean,
   optionValuesBySnippet: Map<Snippet, OptionValues>,
   snippet: ?Snippet,
+  codesandboxResult:
+    | null
+    | {type: 'loading'}
+    | {type: 'success', sandboxId: string}
+    | {type: 'error', error: string},
 |};
 
 class CodeExporter extends Component<Props, State> {
@@ -245,6 +299,7 @@ class CodeExporter extends Component<Props, State> {
     showCopiedTooltip: false,
     optionValuesBySnippet: new Map(),
     snippet: null,
+    codesandboxResult: null,
   };
 
   _activeSnippet = (): Snippet =>
@@ -252,7 +307,7 @@ class CodeExporter extends Component<Props, State> {
 
   setSnippet = (snippet: Snippet) => {
     this.props.onSelectSnippet && this.props.onSelectSnippet(snippet);
-    this.setState({snippet});
+    this.setState({snippet, codesandboxResult: null});
   };
 
   setLanguage = (language: string) => {
@@ -287,16 +342,65 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  render() {
-    const {
+  _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
+    this.setState({codesandboxResult: {type: 'loading'}});
+    const snippet = this._activeSnippet();
+    if (!snippet) {
+      // Shouldn't be able to get in this state, but just in case...
+      this.setState({
+        codesandboxResult: {type: 'error', error: 'No active snippet'},
+      });
+      return;
+    }
+    const generateFiles = snippet.generateCodesandboxFiles;
+    if (!generateFiles) {
+      // Shouldn't be able to get in this state, but just in case...
+      this.setState({
+        codesandboxResult: {
+          type: 'error',
+          error: 'Snippet does not support CodeSandbox',
+        },
+      });
+      return;
+    }
+    try {
+      const sandboxResult = await createCodesandbox(
+        generateFiles(this._collectOptions(snippet, operationDataList)),
+      );
+      this.setState({
+        codesandboxResult: {type: 'success', ...sandboxResult},
+      });
+      this.props.onGenerateCodesandbox &&
+        this.props.onGenerateCodesandbox(sandboxResult);
+    } catch (e) {
+      console.error('Error generating codesandbox', e);
+      this.setState({
+        codesandboxResult: {
+          type: 'error',
+          error: 'Failed to generate CodeSandbox',
+        },
+      });
+    }
+  };
+
+  _collectOptions = (
+    snippet: Snippet,
+    operationDataList: Array<OperationData>,
+  ): GenerateOptions => {
+    const {serverUrl, context = {}, headers = {}} = this.props;
+    const optionValues = this.getOptionValues(snippet);
+    return {
       serverUrl,
-      query,
-      snippets,
-      context = {},
-      variables = {},
-      headers = {},
-    } = this.props;
-    const {showCopiedTooltip} = this.state;
+      headers,
+      context,
+      operationDataList,
+      options: optionValues,
+    };
+  };
+
+  render() {
+    const {query, snippets, variables = {}} = this.props;
+    const {showCopiedTooltip, codesandboxResult} = this.state;
 
     const snippet = this._activeSnippet();
     const operationDefinitions = getOperationNodes(query);
@@ -318,14 +422,10 @@ class CodeExporter extends Component<Props, State> {
     const optionValues = this.getOptionValues(snippet);
 
     const codeSnippet = operationDefinitions.length
-      ? generate({
-          serverUrl,
-          headers,
-          context,
-          operationDataList,
-          options: optionValues,
-        })
+      ? generate(this._collectOptions(snippet, operationDataList))
       : null;
+
+    const supportsCodesandbox = snippet.generateCodesandboxFiles;
 
     const languages = [
       ...new Set(snippets.map(snippet => snippet.language)),
@@ -389,6 +489,50 @@ class CodeExporter extends Component<Props, State> {
           ) : (
             <div style={{minHeight: 8}} />
           )}
+          {supportsCodesandbox ? (
+            <div style={{padding: '0 7px 8px'}}>
+              <button
+                className={'toolbar-button'}
+                style={{
+                  backgroundColor: 'white',
+                  border: 'none',
+                  outline: 'none',
+                  maxWidth: 320,
+                  display: 'flex',
+                  ...(codeSnippet
+                    ? {}
+                    : {
+                        opacity: 0.6,
+                        cursor: 'default',
+                        background: '#ececec',
+                      }),
+                }}
+                type="button"
+                disabled={!codeSnippet}
+                onClick={() => this._generateCodesandbox(operationDataList)}>
+                {codesandboxIcon}{' '}
+                <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
+              </button>
+              {codesandboxResult ? (
+                <div style={{paddingLeft: 5, paddingTop: 5}}>
+                  {codesandboxResult.type === 'loading' ? (
+                    'Loading...'
+                  ) : codesandboxResult.type === 'error' ? (
+                    `Error: ${codesandboxResult.error}`
+                  ) : (
+                    <a
+                      rel="noopener noreferrer"
+                      target="_blank"
+                      href={`https://codesandbox.io/s/${
+                        codesandboxResult.sandboxId
+                      }`}>
+                      Visit CodeSandbox
+                    </a>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <button
           className={'toolbar-button'}
@@ -500,6 +644,7 @@ type WrapperProps = {
   onSelectSnippet?: (snippet: Snippet) => void,
   onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
   optionValues?: OptionValues,
+  onGenerateCodesandbox?: ?({sandboxId: string}) => void,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
@@ -517,6 +662,7 @@ export default function CodeExporterWrapper({
   onSelectSnippet,
   onSetOptionValue,
   optionValues,
+  onGenerateCodesandbox,
 }: WrapperProps) {
   let jsonVariables: Variables = {};
 
@@ -560,6 +706,7 @@ export default function CodeExporterWrapper({
               onSelectSnippet={onSelectSnippet}
               onSetOptionValue={onSetOptionValue}
               optionValues={optionValues || {}}
+              onGenerateCodesandbox={onGenerateCodesandbox}
             />
           </ErrorBoundary>
         ) : (

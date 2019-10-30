@@ -1,7 +1,13 @@
 // @flow
 
 import CodeExporter from './CodeExporter';
+import capitalizeFirstLetter from './utils/capitalizeFirstLetter';
+import jsCommentsFactory from './utils/jsCommentsFactory';
+import snippets from './snippets/index';
+
 export type {
+  CodesandboxFile,
+  CodesandboxFiles,
   Snippet,
   GenerateOptions,
   OperationData,
@@ -9,10 +15,6 @@ export type {
   OptionValues,
   Variables,
 } from './CodeExporter';
-
-import capitalizeFirstLetter from './utils/capitalizeFirstLetter';
-import jsCommentsFactory from './utils/jsCommentsFactory';
-import snippets from './snippets/index';
 
 export {capitalizeFirstLetter, jsCommentsFactory, snippets};
 

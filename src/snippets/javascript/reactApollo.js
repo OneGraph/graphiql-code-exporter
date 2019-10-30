@@ -40,7 +40,9 @@ function operationVariables(operationData: OperationData) {
   const variablesBody = params.map(param => `"${param}": ${param}`).join(', ');
   const variables = `{${variablesBody}}`;
 
-  const propsBody = params.map(param => `"${param}": props.${param}`).join(', ');
+  const propsBody = params
+    .map(param => `"${param}": props.${param}`)
+    .join(', ');
   const props = `{${propsBody}}`;
 
   return {params, variables, props};
@@ -53,10 +55,10 @@ function operationComponentName(operationData: OperationData): string {
     type === 'query'
       ? 'Query'
       : type === 'mutation'
-        ? 'Mutation'
-        : type === 'subscription'
-          ? 'Subscription'
-          : '';
+      ? 'Mutation'
+      : type === 'subscription'
+      ? 'Subscription'
+      : '';
 
   return suffix.length > 0
     ? '' + capitalizeFirstLetter(operationData.name) + suffix
@@ -262,11 +264,11 @@ ${reactApolloImports}`
           operationData.type === 'query'
             ? queryComponent
             : operationData.type === 'mutation'
-              ? mutationComponent
-              : () =>
-                  `"We don't support ${
-                    operationData.type
-                  } GraphQL operations yet"`;
+            ? mutationComponent
+            : () =>
+                `"We don't support ${
+                  operationData.type
+                } GraphQL operations yet"`;
 
         const graphqlOperation = `const ${operationVariableName(
           operationData,
@@ -279,17 +281,17 @@ ${addLeftWhitespace(operationData.query, 2)}
 const ${operationComponentName(operationData)} = (props) => {
   return (
 ${addLeftWhitespace(
-          componentFn(
-            // $FlowFixMe: Add flow type to utils fn
-            getComment,
-            options,
-            element,
-            operationData,
-            heads,
-            vars,
-          ),
-          4,
-        )}
+  componentFn(
+    // $FlowFixMe: Add flow type to utils fn
+    getComment,
+    options,
+    element,
+    operationData,
+    heads,
+    vars,
+  ),
+  4,
+)}
   )
 };`;
 
@@ -309,9 +311,9 @@ ${addLeftWhitespace(
 
     const variableInstantiations = operationDataList
       .map(operationData => {
-        const variables = Object.entries(
-          operationData.variables || {}
-        ).map(([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`);
+        const variables = Object.entries(operationData.variables || {}).map(
+          ([key, value]) => `const ${key} = ${JSON.stringify(value, null, 2)};`,
+        );
 
         return `${variables.join('\n')}`;
       })
