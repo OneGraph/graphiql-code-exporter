@@ -675,14 +675,14 @@ export default function CodeExporterWrapper({
 
   return (
     <div
-      className="historyPaneWrap"
+      className="docExplorerWrap"
       style={{
         width: 440,
         minWidth: 440,
         zIndex: 7,
       }}>
-      <div className="history-title-bar">
-        <div className="history-title">Code Exporter</div>
+      <div className="doc-explorer-title-bar">
+        <div className="doc-explorer-title">Code Exporter</div>
         <div className="doc-explorer-rhs">
           <div className="docExplorerHide" onClick={hideCodeExporter}>
             {'\u2715'}
@@ -690,8 +690,8 @@ export default function CodeExporterWrapper({
         </div>
       </div>
       <div
-        className="history-contents"
-        style={{borderTop: '1px solid #d6d6d6'}}>
+        className="doc-explorer-contents"
+        style={{borderTop: '1px solid #d6d6d6', padding: 0}}>
         {snippets.length ? (
           <ErrorBoundary>
             <CodeExporter
