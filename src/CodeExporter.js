@@ -4,12 +4,14 @@ import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
+import toposort from './toposort.js';
 
 import type {
   FragmentDefinitionNode,
   OperationDefinitionNode,
   VariableDefinitionNode,
   OperationTypeNode,
+  SelectionSetNode,
   Schema,
 } from 'graphql';
 
@@ -68,6 +70,7 @@ export type OperationData = {
   variableName: string,
   variables: Variables,
   operationDefinition: OperationDefinitionNode,
+  fragmentDependencies: Array<FragmentDefinitionNode>,
 };
 
 export type GenerateOptions = {
@@ -116,6 +119,53 @@ async function createCodesandbox(
     return {sandboxId: json.sandbox_id};
   }
 }
+
+let findFragmentDependencies = (
+  operationDefinitions: Array<FragmentDefinitionNode>,
+  def: OperationDefinitionNode | FragmentDefinitionNode,
+): Array<FragmentDefinitionNode> => {
+  const fragmentByName = (name: string) => {
+    return operationDefinitions.find(def => def.name.value === name);
+  };
+
+  const findReferencedFragments = (
+    selectionSet: SelectionSetNode,
+  ): Array<FragmentDefinitionNode> => {
+    const selections = selectionSet.selections;
+
+    const namedFragments = selections
+      .map(selection => {
+        if (selection.kind === 'FragmentSpread') {
+          return fragmentByName(selection.name.value);
+        } else {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    const nestedNamedFragments: Array<FragmentDefinitionNode> = selections.reduce(
+      (acc, selection) => {
+        if (
+          (selection.kind === 'Field' ||
+            selection.kind === 'SelectionNode' ||
+            selection.kind === 'InlineFragment') &&
+          selection.selectionSet !== undefined
+        ) {
+          return acc.concat(findReferencedFragments(selection.selectionSet));
+        } else {
+          return acc;
+        }
+      },
+      [],
+    );
+
+    return namedFragments.concat(nestedNamedFragments);
+  };
+
+  const selectionSet = def.selectionSet;
+
+  return findReferencedFragments(selectionSet);
+};
 
 let operationNodesMemo: [
   ?string,
@@ -416,7 +466,15 @@ class CodeExporter extends Component<Props, State> {
 
     const {name, language, generate} = snippet;
 
-    const operationDataList: Array<OperationData> = operationDefinitions.map(
+    const fragmentDefinitions: Array<FragmentDefinitionNode> = [];
+
+    for (const operationDefinition of operationDefinitions) {
+      if (operationDefinition.kind === 'FragmentDefinition') {
+        fragmentDefinitions.push(operationDefinition);
+      }
+    }
+
+    const rawOperationDataList: Array<OperationData> = operationDefinitions.map(
       (
         operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
       ) => ({
@@ -427,12 +485,16 @@ class CodeExporter extends Component<Props, State> {
         variableName: formatVariableName(getOperationName(operationDefinition)),
         variables: getUsedVariables(variables, operationDefinition),
         operationDefinition,
+        fragmentDependencies: findFragmentDependencies(
+          fragmentDefinitions,
+          operationDefinition,
+        ),
       }),
     );
 
-    window.myODs = operationDataList;
+    const operationDataList = toposort(rawOperationDataList);
 
-    const optionValues = this.getOptionValues(snippet);
+    const optionValues: Array<OperationData> = this.getOptionValues(snippet);
 
     const codeSnippet = operationDefinitions.length
       ? generate(
