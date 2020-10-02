@@ -1,15 +1,18 @@
 // @flow
-
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
 import {parse, print} from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
+import toposort from './toposort.js';
 
 import type {
+  FragmentDefinitionNode,
   OperationDefinitionNode,
   VariableDefinitionNode,
   OperationTypeNode,
+  SelectionSetNode,
+  Schema,
 } from 'graphql';
 
 function formatVariableName(name: string) {
@@ -67,6 +70,7 @@ export type OperationData = {
   variableName: string,
   variables: Variables,
   operationDefinition: OperationDefinitionNode,
+  fragmentDependencies: Array<FragmentDefinitionNode>,
 };
 
 export type GenerateOptions = {
@@ -116,11 +120,60 @@ async function createCodesandbox(
   }
 }
 
-let operationNodesMemo: [?string, ?Array<OperationDefinitionNode>] = [
-  null,
-  null,
-];
-function getOperationNodes(query: string): Array<OperationDefinitionNode> {
+let findFragmentDependencies = (
+  operationDefinitions: Array<FragmentDefinitionNode>,
+  def: OperationDefinitionNode | FragmentDefinitionNode,
+): Array<FragmentDefinitionNode> => {
+  const fragmentByName = (name: string) => {
+    return operationDefinitions.find(def => def.name.value === name);
+  };
+
+  const findReferencedFragments = (
+    selectionSet: SelectionSetNode,
+  ): Array<FragmentDefinitionNode> => {
+    const selections = selectionSet.selections;
+
+    const namedFragments = selections
+      .map(selection => {
+        if (selection.kind === 'FragmentSpread') {
+          return fragmentByName(selection.name.value);
+        } else {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    const nestedNamedFragments: Array<FragmentDefinitionNode> = selections.reduce(
+      (acc, selection) => {
+        if (
+          (selection.kind === 'Field' ||
+            selection.kind === 'SelectionNode' ||
+            selection.kind === 'InlineFragment') &&
+          selection.selectionSet !== undefined
+        ) {
+          return acc.concat(findReferencedFragments(selection.selectionSet));
+        } else {
+          return acc;
+        }
+      },
+      [],
+    );
+
+    return namedFragments.concat(nestedNamedFragments);
+  };
+
+  const selectionSet = def.selectionSet;
+
+  return findReferencedFragments(selectionSet);
+};
+
+let operationNodesMemo: [
+  ?string,
+  ?Array<OperationDefinitionNode | FragmentDefinitionNode>,
+] = [null, null];
+function getOperationNodes(
+  query: string,
+): Array<OperationDefinitionNode | FragmentDefinitionNode> {
   if (operationNodesMemo[0] === query && operationNodesMemo[1]) {
     return operationNodesMemo[1];
   }
@@ -128,8 +181,8 @@ function getOperationNodes(query: string): Array<OperationDefinitionNode> {
   try {
     for (const def of parse(query).definitions) {
       if (
-        def.kind === 'OperationDefinition' &&
-        def.operation !== 'subscription'
+        def.kind === 'FragmentDefinition' ||
+        def.kind === 'OperationDefinition'
       ) {
         operationDefinitions.push(def);
       }
@@ -187,6 +240,7 @@ export class ToolbarMenu extends Component<
   render() {
     const visible = this.state.visible;
     return (
+      // eslint-disable-next-line
       <a
         className="toolbar-menu toolbar-button"
         onClick={this.handleOpen}
@@ -281,6 +335,7 @@ type Props = {|
   onSelectSnippet: ?(snippet: Snippet) => void,
   onSetOptionValue: ?(snippet: Snippet, option: string, value: boolean) => void,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
+  schema: ?Schema,
 |};
 type State = {|
   showCopiedTooltip: boolean,
@@ -365,7 +420,9 @@ class CodeExporter extends Component<Props, State> {
     }
     try {
       const sandboxResult = await createCodesandbox(
-        generateFiles(this._collectOptions(snippet, operationDataList)),
+        generateFiles(
+          this._collectOptions(snippet, operationDataList, this.props.schema),
+        ),
       );
       this.setState({
         codesandboxResult: {type: 'success', ...sandboxResult},
@@ -386,6 +443,7 @@ class CodeExporter extends Component<Props, State> {
   _collectOptions = (
     snippet: Snippet,
     operationDataList: Array<OperationData>,
+    schema: ?Schema,
   ): GenerateOptions => {
     const {serverUrl, context = {}, headers = {}} = this.props;
     const optionValues = this.getOptionValues(snippet);
@@ -395,6 +453,7 @@ class CodeExporter extends Component<Props, State> {
       context,
       operationDataList,
       options: optionValues,
+      schema,
     };
   };
 
@@ -407,22 +466,40 @@ class CodeExporter extends Component<Props, State> {
 
     const {name, language, generate} = snippet;
 
-    const operationDataList: Array<OperationData> = operationDefinitions.map(
-      (operationDefinition: OperationDefinitionNode) => ({
+    const fragmentDefinitions: Array<FragmentDefinitionNode> = [];
+
+    for (const operationDefinition of operationDefinitions) {
+      if (operationDefinition.kind === 'FragmentDefinition') {
+        fragmentDefinitions.push(operationDefinition);
+      }
+    }
+
+    const rawOperationDataList: Array<OperationData> = operationDefinitions.map(
+      (
+        operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
+      ) => ({
         query: print(operationDefinition),
-        name: getOperationName(operationDefinition),
+        name: getOperationName(operationDefinition) || operationDefinition.name,
         displayName: getOperationDisplayName(operationDefinition),
-        type: operationDefinition.operation,
+        type: operationDefinition.operation || 'fragment',
         variableName: formatVariableName(getOperationName(operationDefinition)),
         variables: getUsedVariables(variables, operationDefinition),
         operationDefinition,
+        fragmentDependencies: findFragmentDependencies(
+          fragmentDefinitions,
+          operationDefinition,
+        ),
       }),
     );
 
-    const optionValues = this.getOptionValues(snippet);
+    const operationDataList = toposort(rawOperationDataList);
+
+    const optionValues: Array<OperationData> = this.getOptionValues(snippet);
 
     const codeSnippet = operationDefinitions.length
-      ? generate(this._collectOptions(snippet, operationDataList))
+      ? generate(
+          this._collectOptions(snippet, operationDataList, this.props.schema),
+        )
       : null;
 
     const supportsCodesandbox = snippet.generateCodesandboxFiles;
@@ -441,14 +518,18 @@ class CodeExporter extends Component<Props, State> {
           <div style={{padding: '12px 7px 8px'}}>
             <ToolbarMenu label={language} title="Language">
               {languages.map((lang: string) => (
-                <li onClick={() => this.setLanguage(lang)}>{lang}</li>
+                <li key={lang} onClick={() => this.setLanguage(lang)}>
+                  {lang}
+                </li>
               ))}
             </ToolbarMenu>
             <ToolbarMenu label={name} title="Mode">
               {snippets
                 .filter(snippet => snippet.language === language)
                 .map(snippet => (
-                  <li onClick={() => this.setSnippet(snippet)}>
+                  <li
+                    key={snippet.name}
+                    onClick={() => this.setSnippet(snippet)}>
                     {snippet.name}
                   </li>
                 ))}
@@ -480,7 +561,7 @@ class CodeExporter extends Component<Props, State> {
                       )
                     }
                   />
-                  <label for={option.id} style={{paddingLeft: 5}}>
+                  <label htmlFor={option.id} style={{paddingLeft: 5}}>
                     {option.label}
                   </label>
                 </div>
@@ -523,9 +604,7 @@ class CodeExporter extends Component<Props, State> {
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
-                      href={`https://codesandbox.io/s/${
-                        codesandboxResult.sandboxId
-                      }`}>
+                      href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
                     </a>
                   )}
@@ -645,6 +724,7 @@ type WrapperProps = {
   onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
   optionValues?: OptionValues,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
+  schema: ?Schema,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
@@ -663,6 +743,7 @@ export default function CodeExporterWrapper({
   onSetOptionValue,
   optionValues,
   onGenerateCodesandbox,
+  schema,
 }: WrapperProps) {
   let jsonVariables: Variables = {};
 
@@ -707,6 +788,7 @@ export default function CodeExporterWrapper({
               onSetOptionValue={onSetOptionValue}
               optionValues={optionValues || {}}
               onGenerateCodesandbox={onGenerateCodesandbox}
+              schema={schema}
             />
           </ErrorBoundary>
         ) : (
