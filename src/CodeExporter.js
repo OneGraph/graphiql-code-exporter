@@ -7,12 +7,12 @@ import CodeMirror from 'codemirror';
 import toposort from './toposort.js';
 
 import type {
+  GraphQLSchema,
   FragmentDefinitionNode,
   OperationDefinitionNode,
   VariableDefinitionNode,
   OperationTypeNode,
   SelectionSetNode,
-  Schema,
 } from 'graphql';
 
 function formatVariableName(name: string) {
@@ -66,10 +66,10 @@ export type OperationData = {
   query: string,
   name: string,
   displayName: string,
-  type: OperationTypeNode,
+  type: OperationTypeNode | 'fragment',
   variableName: string,
   variables: Variables,
-  operationDefinition: OperationDefinitionNode,
+  operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
   fragmentDependencies: Array<FragmentDefinitionNode>,
 };
 
@@ -194,7 +194,7 @@ function getOperationNodes(
 
 const getUsedVariables = (
   variables: Variables,
-  operationDefinition: OperationDefinitionNode,
+  operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
 ): Variables => {
   return (operationDefinition.variableDefinitions || []).reduce(
     (usedVariables, variable: VariableDefinitionNode) => {
@@ -209,12 +209,14 @@ const getUsedVariables = (
   );
 };
 
-const getOperationName = (operationDefinition: OperationDefinitionNode) =>
+const getOperationName = (
+  operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
+) =>
   operationDefinition.name
     ? operationDefinition.name.value
     : operationDefinition.operation;
 
-const getOperationDisplayName = operationDefinition =>
+const getOperationDisplayName = (operationDefinition): string =>
   operationDefinition.name
     ? operationDefinition.name.value
     : '<Unnamed:' + operationDefinition.operation + '>';
@@ -335,7 +337,7 @@ type Props = {|
   onSelectSnippet: ?(snippet: Snippet) => void,
   onSetOptionValue: ?(snippet: Snippet, option: string, value: boolean) => void,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
-  schema: ?Schema,
+  schema: ?GraphQLSchema,
 |};
 type State = {|
   showCopiedTooltip: boolean,
@@ -443,7 +445,7 @@ class CodeExporter extends Component<Props, State> {
   _collectOptions = (
     snippet: Snippet,
     operationDataList: Array<OperationData>,
-    schema: ?Schema,
+    schema: ?GraphQLSchema,
   ): GenerateOptions => {
     const {serverUrl, context = {}, headers = {}} = this.props;
     const optionValues = this.getOptionValues(snippet);
@@ -479,8 +481,9 @@ class CodeExporter extends Component<Props, State> {
         operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
       ) => ({
         query: print(operationDefinition),
-        name: getOperationName(operationDefinition) || operationDefinition.name,
+        name: getOperationName(operationDefinition),
         displayName: getOperationDisplayName(operationDefinition),
+        // $FlowFixMe: Come back for this
         type: operationDefinition.operation || 'fragment',
         variableName: formatVariableName(getOperationName(operationDefinition)),
         variables: getUsedVariables(variables, operationDefinition),
@@ -552,11 +555,13 @@ class CodeExporter extends Component<Props, State> {
                     id={option.id}
                     type="checkbox"
                     style={{position: 'relative', top: -1}}
+                    // $FlowFixMe: Come back for this
                     checked={optionValues[option.id]}
                     onChange={() =>
                       this.handleSetOptionValue(
                         snippet,
                         option.id,
+                        // $FlowFixMe: Come back for this
                         !optionValues[option.id],
                       )
                     }
@@ -604,7 +609,9 @@ class CodeExporter extends Component<Props, State> {
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
-                      href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
+                      href={`https://codesandbox.io/s/${
+                        codesandboxResult.sandboxId
+                      }`}>
                       Visit CodeSandbox
                     </a>
                   )}
@@ -724,7 +731,7 @@ type WrapperProps = {
   onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
   optionValues?: OptionValues,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
-  schema: ?Schema,
+  schema: ?GraphQLSchema,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
