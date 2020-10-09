@@ -5,6 +5,7 @@ import {parse, print} from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
 import toposort from './toposort.js';
+import {saveAs} from 'file-saver';
 
 import type {
   GraphQLSchema,
@@ -55,6 +56,24 @@ const codesandboxIcon = (
   </svg>
 );
 
+const zipFileIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    x="0"
+    y="0"
+    width="20"
+    height="20"
+    enableBackground="new 0 0 48 48"
+    version="1.1"
+    viewBox="0 0 48 48"
+    xmlSpace="preserve">
+    <path d="M47.987 21.938a.99.99 0 00-.053-.264c-.011-.032-.019-.063-.033-.094a.957.957 0 00-.193-.285l-.001-.001L42 15.586V10c0-.022-.011-.041-.013-.063a1.028 1.028 0 00-.051-.257c-.011-.032-.019-.063-.034-.094a.997.997 0 00-.196-.293l-9-9a.97.97 0 00-.294-.196c-.03-.014-.06-.022-.091-.032a.937.937 0 00-.263-.052C32.039.01 32.021 0 32 0H7a1 1 0 00-1 1v14.586L.293 21.293l-.002.002a.98.98 0 00-.192.285c-.014.031-.022.062-.033.094a.953.953 0 00-.053.264C.011 21.96 0 21.978 0 22v19a1 1 0 001 1h5v5a1 1 0 001 1h34a1 1 0 001-1v-5h5a1 1 0 001-1V22c0-.022-.011-.04-.013-.062zM44.586 21H42v-2.586L44.586 21zm-6-12H33V3.414L38.586 9zM8 2h23v8a1 1 0 001 1h8v10H8V2zM6 18.414V21H3.414L6 18.414zM40 46H8v-4h32v4zm6-6H2V23h44v17z"></path>
+    <path d="M14.582 27.766L18.356 27.766 14.31 36.317 14.31 38 20.6 38 20.6 36.164 16.571 36.164 20.6 27.613 20.6 25.964 14.582 25.964z"></path>
+    <path d="M22.436 25.964H24.476V38H22.436z"></path>
+    <path d="M32.542 26.72a2.82 2.82 0 00-1.097-.586 4.453 4.453 0 00-1.19-.17h-3.332V38h2.006v-4.828h1.428c.419 0 .827-.074 1.224-.221a2.9 2.9 0 001.054-.68c.306-.306.553-.688.739-1.148.187-.459.28-.994.28-1.606 0-.68-.105-1.247-.314-1.7a3.15 3.15 0 00-.798-1.097zm-1.283 4.285c-.306.334-.697.501-1.173.501H28.93v-3.825h1.156c.476 0 .867.147 1.173.442.306.295.459.765.459 1.411s-.153 1.136-.459 1.471z"></path>
+  </svg>
+);
+
 export type Variables = {[key: string]: ?mixed};
 
 // TODO: Need clearer separation between option defs and option values
@@ -96,6 +115,7 @@ export type Snippet = {
   name: string,
   generate: (options: GenerateOptions) => string,
   generateCodesandboxFiles?: ?(options: GenerateOptions) => CodesandboxFiles,
+  generateZipFile?: ?(options: GenerateOptions) => {name: string, blob: Blob},
 };
 
 async function createCodesandbox(
@@ -399,6 +419,48 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
+  _generateAndDownloadZipFile = async (
+    operationDataList: Array<OperationData>,
+  ) => {
+    const snippet = this._activeSnippet();
+    if (!snippet) {
+      // Shouldn't be able to get in this state, but just in case...
+      this.setState({
+        codesandboxResult: {type: 'error', error: 'No active snippet'},
+      });
+      return;
+    }
+    const generateZipFile = snippet.generateZipFile;
+    if (!generateZipFile) {
+      // Shouldn't be able to get in this state, but just in case...
+      this.setState({
+        codesandboxResult: {
+          type: 'error',
+          error: 'Snippet does not support zip files',
+        },
+      });
+      return;
+    }
+    try {
+      const zip = await generateZipFile(
+        this._collectOptions(snippet, operationDataList, this.props.schema),
+      );
+
+      window.zip = zip;
+
+      saveAs(zip.blob, zip.name);
+    } catch (e) {
+      window.eero = e;
+      console.error('Error generating zip', e);
+      this.setState({
+        codesandboxResult: {
+          type: 'error',
+          error: 'Failed to generate zip file',
+        },
+      });
+    }
+  };
+
   _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
     this.setState({codesandboxResult: {type: 'loading'}});
     const snippet = this._activeSnippet();
@@ -507,6 +569,8 @@ class CodeExporter extends Component<Props, State> {
 
     const supportsCodesandbox = snippet.generateCodesandboxFiles;
 
+    const supportsZipDownload = snippet.generateZipFile;
+
     const languages = [
       ...new Set(snippets.map(snippet => snippet.language)),
     ].sort((a, b) => a.localeCompare(b));
@@ -609,14 +673,40 @@ class CodeExporter extends Component<Props, State> {
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
-                      href={`https://codesandbox.io/s/${
-                        codesandboxResult.sandboxId
-                      }`}>
+                      href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
                     </a>
                   )}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+          {supportsZipDownload ? (
+            <div style={{padding: '0 7px 8px'}}>
+              <button
+                className={'toolbar-button'}
+                style={{
+                  backgroundColor: 'white',
+                  border: 'none',
+                  outline: 'none',
+                  maxWidth: 320,
+                  display: 'flex',
+                  ...(codeSnippet
+                    ? {}
+                    : {
+                        opacity: 0.6,
+                        cursor: 'default',
+                        background: '#ececec',
+                      }),
+                }}
+                type="button"
+                disabled={!codeSnippet}
+                onClick={() =>
+                  this._generateAndDownloadZipFile(operationDataList)
+                }>
+                {zipFileIcon}{' '}
+                <span style={{paddingLeft: '0.5em'}}>Download</span>
+              </button>
             </div>
           ) : null}
         </div>
