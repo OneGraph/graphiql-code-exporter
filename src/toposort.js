@@ -1,5 +1,4 @@
 // @flow
-import type {FragmentDefinitionNode, OperationDefinitionNode} from 'graphql';
 import type {OperationData} from './CodeExporter.js';
 
 type stringBoolMap = {[string]: boolean};

@@ -323,6 +323,13 @@ class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
   }
 }
 
+export type PreGenerateCodesandboxOptions = {
+  query: string,
+  operationDataList: Array<OperationData>,
+  options: GenerateOptions,
+  snippet: Snippet,
+};
+
 type Props = {|
   snippet: ?Snippet,
   snippets: Array<Snippet>,
@@ -337,6 +344,8 @@ type Props = {|
   onSelectSnippet: ?(snippet: Snippet) => void,
   onSetOptionValue: ?(snippet: Snippet, option: string, value: boolean) => void,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
+  preGenerateCodesandbox?: ?(PreGenerateCodesandboxOptions) => boolean,
+  codeSandboxButtonText?: ?string,
   schema: ?GraphQLSchema,
 |};
 type State = {|
@@ -399,7 +408,12 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
+  _generateCodesandbox = async (
+    query,
+    operationDataList: Array<OperationData>,
+  ) => {
+    let shouldContinue = true;
+
     this.setState({codesandboxResult: {type: 'loading'}});
     const snippet = this._activeSnippet();
     if (!snippet) {
@@ -420,12 +434,30 @@ class CodeExporter extends Component<Props, State> {
       });
       return;
     }
+
     try {
-      const sandboxResult = await createCodesandbox(
-        generateFiles(
-          this._collectOptions(snippet, operationDataList, this.props.schema),
-        ),
+      const options = this._collectOptions(
+        snippet,
+        operationDataList,
+        this.props.schema,
       );
+
+      if (this.props.preGenerateCodesandbox) {
+        const opts: PreGenerateCodesandboxOptions = {
+          query: query,
+          operationDataList: operationDataList,
+          options: options,
+          snippet: snippet,
+        };
+        shouldContinue = this.props.preGenerateCodesandbox(opts);
+      }
+
+      if (!shouldContinue) {
+        console.debug('CodeSandbox generation stopped by parent component');
+        return;
+      }
+
+      const sandboxResult = await createCodesandbox(generateFiles(options));
       this.setState({
         codesandboxResult: {type: 'success', ...sandboxResult},
       });
@@ -459,14 +491,14 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  render() {
-    const {query, snippets, variables = {}} = this.props;
-    const {showCopiedTooltip, codesandboxResult} = this.state;
-
-    const snippet = this._activeSnippet();
+  _computeOperationDataList({
+    query,
+    variables,
+  }: {
+    query: string,
+    variables: Variables,
+  }) {
     const operationDefinitions = getOperationNodes(query);
-
-    const {name, language, generate} = snippet;
 
     const fragmentDefinitions: Array<FragmentDefinitionNode> = [];
 
@@ -496,6 +528,27 @@ class CodeExporter extends Component<Props, State> {
     );
 
     const operationDataList = toposort(rawOperationDataList);
+
+    return {
+      operationDefinitions: operationDefinitions,
+      fragmentDefinitions: fragmentDefinitions,
+      rawOperationDataList: rawOperationDataList,
+      operationDataList: operationDataList,
+    };
+  }
+
+  render() {
+    const {query, snippets, variables = {}} = this.props;
+    const {showCopiedTooltip, codesandboxResult} = this.state;
+
+    const snippet = this._activeSnippet();
+
+    const {name, language, generate} = snippet;
+
+    const {
+      operationDefinitions,
+      operationDataList,
+    } = this._computeOperationDataList({query, variables});
 
     const optionValues: Array<OperationData> = this.getOptionValues(snippet);
 
@@ -578,7 +631,7 @@ class CodeExporter extends Component<Props, State> {
           {supportsCodesandbox ? (
             <div style={{padding: '0 7px 8px'}}>
               <button
-                className={'toolbar-button'}
+                className={'toolbar-button create-code-sandbox'}
                 style={{
                   backgroundColor: 'white',
                   border: 'none',
@@ -595,9 +648,13 @@ class CodeExporter extends Component<Props, State> {
                 }}
                 type="button"
                 disabled={!codeSnippet}
-                onClick={() => this._generateCodesandbox(operationDataList)}>
+                onClick={() =>
+                  this._generateCodesandbox(query, operationDataList)
+                }>
                 {codesandboxIcon}{' '}
-                <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
+                <span style={{paddingLeft: '0.5em'}}>
+                  {this.props.codeSandboxButtonText || 'Create CodeSandbox'}
+                </span>
               </button>
               {codesandboxResult ? (
                 <div style={{paddingLeft: 5, paddingTop: 5}}>
@@ -609,9 +666,7 @@ class CodeExporter extends Component<Props, State> {
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
-                      href={`https://codesandbox.io/s/${
-                        codesandboxResult.sandboxId
-                      }`}>
+                      href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
                     </a>
                   )}
@@ -731,79 +786,110 @@ type WrapperProps = {
   onSetOptionValue?: (snippet: Snippet, option: string, value: boolean) => void,
   optionValues?: OptionValues,
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
+  preGenerateCodesandbox?: ?() => boolean,
   schema: ?GraphQLSchema,
+  codeSandboxButtonText?: ?string,
 };
 
 // we borrow class names from graphiql's CSS as the visual appearance is the same
 // yet we might want to change that at some point in order to have a self-contained standalone
-export default function CodeExporterWrapper({
-  query,
-  serverUrl,
-  variables,
-  context = {},
-  headers = {},
-  hideCodeExporter = () => {},
-  snippets,
-  snippet,
-  codeMirrorTheme,
-  onSelectSnippet,
-  onSetOptionValue,
-  optionValues,
-  onGenerateCodesandbox,
-  schema,
-}: WrapperProps) {
-  let jsonVariables: Variables = {};
+export default class CodeExporterWrapper extends Component<WrapperProps> {
+  codeExporter: ?CodeExporter;
 
-  try {
-    const parsedVariables = JSON.parse(variables);
-    if (typeof parsedVariables === 'object') {
-      jsonVariables = parsedVariables;
+  generateCodesandboxFiles({
+    query,
+    variables,
+  }: {
+    query: string,
+    variables: Variables,
+  }) {
+    if (this.codeExporter) {
+      const {operationDataList} = this.codeExporter._computeOperationDataList({
+        query,
+        variables,
+      });
+      this.codeExporter &&
+        this.codeExporter._generateCodesandbox(query, operationDataList);
     }
-  } catch (e) {}
+  }
 
-  return (
-    <div
-      className="docExplorerWrap"
-      style={{
-        width: 440,
-        minWidth: 440,
-        zIndex: 7,
-      }}>
-      <div className="doc-explorer-title-bar">
-        <div className="doc-explorer-title">Code Exporter</div>
-        <div className="doc-explorer-rhs">
-          <div className="docExplorerHide" onClick={hideCodeExporter}>
-            {'\u2715'}
+  render() {
+    const {
+      query,
+      serverUrl,
+      variables,
+      context = {},
+      headers = {},
+      hideCodeExporter = () => {},
+      snippets,
+      snippet,
+      codeMirrorTheme,
+      onSelectSnippet,
+      onSetOptionValue,
+      optionValues,
+      onGenerateCodesandbox,
+      preGenerateCodesandbox,
+      schema,
+      codeSandboxButtonText,
+    }: WrapperProps = this.props;
+    let jsonVariables: Variables = {};
+
+    try {
+      const parsedVariables = JSON.parse(variables);
+      if (typeof parsedVariables === 'object') {
+        jsonVariables = parsedVariables;
+      }
+    } catch (e) {}
+
+    return (
+      <div
+        className="docExplorerWrap"
+        style={{
+          width: 440,
+          minWidth: 440,
+          zIndex: 7,
+        }}>
+        <div className="doc-explorer-title-bar">
+          <div className="doc-explorer-title">Code Exporter</div>
+          <div className="doc-explorer-rhs">
+            <div className="docExplorerHide" onClick={hideCodeExporter}>
+              {'\u2715'}
+            </div>
           </div>
         </div>
+        <div
+          className="doc-explorer-contents"
+          style={{borderTop: '1px solid #d6d6d6', padding: 0}}>
+          {snippets.length ? (
+            <ErrorBoundary>
+              <CodeExporter
+                query={query}
+                serverUrl={serverUrl}
+                snippets={snippets}
+                snippet={snippet}
+                context={context}
+                headers={headers}
+                variables={jsonVariables}
+                codeMirrorTheme={codeMirrorTheme}
+                onSelectSnippet={onSelectSnippet}
+                onSetOptionValue={onSetOptionValue}
+                optionValues={optionValues || {}}
+                onGenerateCodesandbox={onGenerateCodesandbox}
+                preGenerateCodesandbox={preGenerateCodesandbox}
+                schema={schema}
+                codeSandboxButtonText={codeSandboxButtonText}
+                ref={ref => {
+                  this.codeExporter = ref;
+                }}
+              />
+            </ErrorBoundary>
+          ) : (
+            <div style={{fontFamily: 'sans-serif'}} className="error-container">
+              Please provide a list of snippets
+            </div>
+          )}
+        </div>
       </div>
-      <div
-        className="doc-explorer-contents"
-        style={{borderTop: '1px solid #d6d6d6', padding: 0}}>
-        {snippets.length ? (
-          <ErrorBoundary>
-            <CodeExporter
-              query={query}
-              serverUrl={serverUrl}
-              snippets={snippets}
-              snippet={snippet}
-              context={context}
-              headers={headers}
-              variables={jsonVariables}
-              codeMirrorTheme={codeMirrorTheme}
-              onSelectSnippet={onSelectSnippet}
-              onSetOptionValue={onSetOptionValue}
-              optionValues={optionValues || {}}
-              onGenerateCodesandbox={onGenerateCodesandbox}
-              schema={schema}
-            />
-          </ErrorBoundary>
-        ) : (
-          <div style={{fontFamily: 'sans-serif'}} className="error-container">
-            Please provide a list of snippets
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
+  }
 }
