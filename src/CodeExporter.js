@@ -98,6 +98,52 @@ export type Snippet = {
   generateCodesandboxFiles?: ?(options: GenerateOptions) => CodesandboxFiles,
 };
 
+export const computeOperationDataList = ({
+  query,
+  variables,
+}: {
+  query: string,
+  variables: Variables,
+}) => {
+  const operationDefinitions = getOperationNodes(query);
+
+  const fragmentDefinitions: Array<FragmentDefinitionNode> = [];
+
+  for (const operationDefinition of operationDefinitions) {
+    if (operationDefinition.kind === 'FragmentDefinition') {
+      fragmentDefinitions.push(operationDefinition);
+    }
+  }
+
+  const rawOperationDataList: Array<OperationData> = operationDefinitions.map(
+    (
+      operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
+    ) => ({
+      query: print(operationDefinition),
+      name: getOperationName(operationDefinition),
+      displayName: getOperationDisplayName(operationDefinition),
+      // $FlowFixMe: Come back for this
+      type: operationDefinition.operation || 'fragment',
+      variableName: formatVariableName(getOperationName(operationDefinition)),
+      variables: getUsedVariables(variables, operationDefinition),
+      operationDefinition,
+      fragmentDependencies: findFragmentDependencies(
+        fragmentDefinitions,
+        operationDefinition,
+      ),
+    }),
+  );
+
+  const operationDataList = toposort(rawOperationDataList);
+
+  return {
+    operationDefinitions: operationDefinitions,
+    fragmentDefinitions: fragmentDefinitions,
+    rawOperationDataList: rawOperationDataList,
+    operationDataList: operationDataList,
+  };
+};
+
 async function createCodesandbox(
   files: CodesandboxFiles,
 ): Promise<{sandboxId: string}> {
@@ -464,38 +510,14 @@ class CodeExporter extends Component<Props, State> {
     const {showCopiedTooltip, codesandboxResult} = this.state;
 
     const snippet = this._activeSnippet();
-    const operationDefinitions = getOperationNodes(query);
-
     const {name, language, generate} = snippet;
 
-    const fragmentDefinitions: Array<FragmentDefinitionNode> = [];
-
-    for (const operationDefinition of operationDefinitions) {
-      if (operationDefinition.kind === 'FragmentDefinition') {
-        fragmentDefinitions.push(operationDefinition);
-      }
-    }
-
-    const rawOperationDataList: Array<OperationData> = operationDefinitions.map(
-      (
-        operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
-      ) => ({
-        query: print(operationDefinition),
-        name: getOperationName(operationDefinition),
-        displayName: getOperationDisplayName(operationDefinition),
-        // $FlowFixMe: Come back for this
-        type: operationDefinition.operation || 'fragment',
-        variableName: formatVariableName(getOperationName(operationDefinition)),
-        variables: getUsedVariables(variables, operationDefinition),
-        operationDefinition,
-        fragmentDependencies: findFragmentDependencies(
-          fragmentDefinitions,
-          operationDefinition,
-        ),
-      }),
-    );
-
-    const operationDataList = toposort(rawOperationDataList);
+    const {
+      operationDefinitions: operationDefinitions,
+      fragmentDefinitions: fragmentDefinitions,
+      rawOperationDataList: rawOperationDataList,
+      operationDataList: operationDataList,
+    } = computeOperationDataList({query, variables});
 
     const optionValues: Array<OperationData> = this.getOptionValues(snippet);
 
@@ -609,9 +631,7 @@ class CodeExporter extends Component<Props, State> {
                     <a
                       rel="noopener noreferrer"
                       target="_blank"
-                      href={`https://codesandbox.io/s/${
-                        codesandboxResult.sandboxId
-                      }`}>
+                      href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
                     </a>
                   )}
