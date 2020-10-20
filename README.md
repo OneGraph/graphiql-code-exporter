@@ -119,24 +119,25 @@ What we call **snippet** here, is actually an object with 4 required keys.
 
 #### Snippet Data
 
-| Key        | Type          |  Description                                                                            |
-| ---------- | ------------- | --------------------------------------------------------------------------------------- |
-| serverUrl  | _string_      | The passed GraphQL server url                                                           |
-| operations | _Operation[]_ | A list of GraphQL operations where each operation has the [operation](#operation) keys. |
-| options    | *Object*      | A map of option-boolean pairs providing whether an option is selected or not            |
-| headers    | _Object?_     | The `headers` object that is passed to the CodeExporter component                       |
-| context    | _Object?_     | The `context` object that is passed to the CodeExporter component                       |
+| Key               | Type          |  Description                                                                            |
+| ----------------- | ------------- | --------------------------------------------------------------------------------------- |
+| serverUrl         | _string_      | The passed GraphQL server url                                                           |
+| operationDataList | _Operation[]_ | A list of GraphQL operations where each operation is an [operation](#operation) object. |
+| options           | *Object*      | A map of option-boolean pairs providing whether an option is selected or not            |
+| headers           | _Object?_     | The `headers` object that is passed to the CodeExporter component                       |
+| context           | _Object?_     | The `context` object that is passed to the CodeExporter component                       |
 
 ##### Operation
 
-| Key          |  Type                   | Description                                                                                               |
-| ------------ | ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| name         | _string_                | The selected GraphQL operation name                                                                       |
-| type         | _"query" \| "mutation"_ | The selected operation's type                                                                             |
-| query        |  *string*               |  A formatted string containing the GraphQL operation                                                      |   |
-| variableName | _string_                | The operation name but in UPPER_CASE as that's the common way to declare GraphQL operations in JavaScript |
-| operation    | _Object_                | The plain GraphQL parser result for this operation                                                        |
-| variables    | _Object_                |  A map of all used variables for this specific operation                                                  |
+| Key                 |  Type                   | Description                                                                                               |
+| ------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| name                | _string_                | The selected GraphQL operation name, or type of operation if unnamed                                      |
+| displayName         | _string_                | Same as `name`, or a placeholder if unnamed                                                               |
+| type                | _"query" \| "mutation"_ | The selected operation's type                                                                             |
+| query               |  *string*               |  A formatted string containing the GraphQL operation                                                      |
+| variableName        | _string_                | The operation name but in UPPER_CASE as that's the common way to declare GraphQL operations in JavaScript |
+| operationDefinition | _Object_                | The plain GraphQL parser result for this operation                                                        |
+| variables           | _Object_                |  A map of all used variables for this specific operation                                                  |
 
 #### Example
 
