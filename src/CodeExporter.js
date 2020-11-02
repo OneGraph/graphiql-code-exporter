@@ -79,6 +79,7 @@ export type GenerateOptions = {
   context: Object,
   operationDataList: Array<OperationData>,
   options: OptionValues,
+  schema: ?GraphQLSchema,
 };
 
 export type CodesandboxFile = {
@@ -520,7 +521,6 @@ class CodeExporter extends Component<Props, State> {
     } = computeOperationDataList({query, variables});
 
     const optionValues: Array<OperationData> = this.getOptionValues(snippet);
-
     const codeSnippet = operationDefinitions.length
       ? generate(
           this._collectOptions(snippet, operationDataList, this.props.schema),
