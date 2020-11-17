@@ -1,16 +1,29 @@
 // @flow
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
-import {parse, print} from 'graphql';
+import {
+  BREAK,
+  getNamedType,
+  GraphQLInputObjectType,
+  GraphQLObjectType,
+  parse,
+  print,
+  visit,
+  visitWithTypeInfo,
+  TypeInfo,
+} from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
 import toposort from './toposort.js';
 
 import type {
   GraphQLSchema,
+  FieldNode,
   FragmentDefinitionNode,
   OperationDefinitionNode,
   VariableDefinitionNode,
+  VariableNode,
+  NameNode,
   OperationTypeNode,
   SelectionSetNode,
 } from 'graphql';
@@ -55,6 +68,11 @@ const codesandboxIcon = (
   </svg>
 );
 
+type ShallowFragmentVariables = {
+  [string]: {
+    variables: ?Array<{name: string, type: string}>,
+  },
+};
 export type Variables = {[key: string]: ?mixed};
 
 // TODO: Need clearer separation between option defs and option values
@@ -99,12 +117,146 @@ export type Snippet = {
   generateCodesandboxFiles?: ?(options: GenerateOptions) => CodesandboxFiles,
 };
 
+type NamedPath = Array<string>;
+
+export const namedPathOfAncestors = (
+  ancestors: ?$ReadOnlyArray<Array<any>>,
+): namedPath =>
+  (ancestors || []).reduce((acc, next) => {
+    if (Array.isArray(next)) {
+      return acc;
+    }
+    switch (next.kind) {
+      case 'Field':
+        return [...acc, next.name.value];
+      case 'Argument':
+        return [...acc, `$arg.${next.name.value}`];
+      default:
+        return acc;
+    }
+  }, []);
+
+const findVariableTypeFromAncestorPath = (
+  schema: GraphQLSchema,
+  definitionNode: FragmentDefinitionNode,
+  variable: VariableNode,
+  ancestors: ?$ReadOnlyArray<Array<any>>,
+): ?{name: string, type: any} => {
+  const namePath = namedPathOfAncestors(ancestors);
+
+  // $FlowFixMe: Optional chaining
+  const usageAst = ancestors.slice(-1)?.[0]?.find(argAst => {
+    return argAst.value?.name?.value === variable.name.value;
+  });
+
+  if (!usageAst) {
+    return;
+  }
+
+  const argObjectValueHelper = (
+    inputObj: GraphQLInputObjectType,
+    path: Array<string>,
+    parentField: ?any,
+  ): ?{name: string, type: any} => {
+    if (path.length === 0) {
+      const finalInputField = inputObj.getFields()[usageAst.name.value];
+      return {
+        name: variable.name.value,
+        type: finalInputField.type,
+      };
+    }
+
+    const [next, ...rest] = path;
+    const field = inputObj.getFields()[next];
+    const namedType = getNamedType(field.type);
+    if (!!namedType && namedType instanceof GraphQLInputObjectType) {
+      return argObjectValueHelper(namedType, rest, field);
+    }
+  };
+
+  const argByName = (field, name) =>
+    field && field.args.find(arg => arg.name === name);
+
+  const helper = (
+    obj: GraphQLObjectType,
+    path: Array<string>,
+    parentField: ?any,
+  ): ?{name: string, type: any} => {
+    if ((path || []).length === 0) {
+      const arg = argByName(parentField, usageAst.name.value);
+      if (!!arg) {
+        return {name: variable.name.value, type: arg.type};
+      }
+    }
+
+    const [next, ...rest] = path;
+    if (!next) {
+      console.warn(
+        'Next is null before finding target in ',
+        variable,
+        namePath,
+        definitionNode,
+      );
+      return;
+    }
+    const nextIsArg = next.startsWith('$arg.');
+    if (nextIsArg) {
+      const argName = next.replace('$arg.', '');
+      const arg = argByName(parentField, argName);
+      if (!arg) {
+        console.warn('Failed to find arg: ', argName);
+        return;
+      }
+      const inputObj = getNamedType(arg.type);
+
+      if (!!inputObj) {
+        return argObjectValueHelper(inputObj, rest);
+      }
+    } else {
+      const field = obj.getFields()[next];
+      const namedType = getNamedType(field.type);
+
+      // TODO: Clean up this mess
+      if ((rest || []).length === 0) {
+        // Dummy use of `obj` since I botched the recursion base case
+        return helper(obj, rest, field);
+      } else {
+        if (!!namedType && !!namedType.getFields) {
+          // $FlowFixMe: Not sure how to type a "GraphQL object that has getFields"
+          return helper(namedType, rest, field);
+        }
+      }
+    }
+  };
+
+  const isDefinitionNode = [
+    'OperationDefinition',
+    'FragmentDefinition',
+  ].includes(definitionNode.kind);
+
+  if (!isDefinitionNode) {
+    return;
+  }
+
+  const rootType =
+    definitionNode.kind === 'FragmentDefinition'
+      ? schema.getType(definitionNode.typeCondition.name.value)
+      : null;
+
+  if (!!rootType && !!rootType.getFields) {
+    // $FlowFixMe: Not sure how to type a "GraphQL object that has getFields"
+    return helper(rootType, namePath);
+  }
+};
+
 export const computeOperationDataList = ({
   query,
   variables,
+  schema,
 }: {
   query: string,
   variables: Variables,
+  schema: ?GraphQLSchema,
 }) => {
   const operationDefinitions = getOperationNodes(query);
 
@@ -129,20 +281,40 @@ export const computeOperationDataList = ({
       variables: getUsedVariables(variables, operationDefinition),
       operationDefinition,
       fragmentDependencies: findFragmentDependencies(
+        schema,
         fragmentDefinitions,
         operationDefinition,
       ),
+      paginationSites:
+        schema && findPaginationSites(schema, operationDefinition),
     }),
   );
 
   const operationDataList = toposort(rawOperationDataList);
 
-  return {
+  let fragmentVariables;
+  if (!!schema) {
+    const shallowFragmentVariables = collectFragmentVariables(
+      schema,
+      fragmentDefinitions,
+    );
+
+    fragmentVariables = computeDeepFragmentVariables(
+      schema,
+      operationDataList,
+      shallowFragmentVariables,
+    );
+  }
+
+  const result = {
     operationDefinitions: operationDefinitions,
     fragmentDefinitions: fragmentDefinitions,
     rawOperationDataList: rawOperationDataList,
     operationDataList: operationDataList,
+    fragmentVariables: fragmentVariables,
   };
+
+  return result;
 };
 
 async function createCodesandbox(
@@ -167,7 +339,538 @@ async function createCodesandbox(
   }
 }
 
+const findPaginationSites = (
+  schema: GraphQLSchema,
+  operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
+) => {
+  var typeInfo = new TypeInfo(schema);
+  var paginationSites = [];
+  let previousNode;
+
+  const hasArgByNameAndTypeName = (field, argName, typeName) => {
+    return field.args.some(
+      arg => arg.name === argName && arg.type.name === typeName,
+    );
+  };
+
+  visit(
+    operationDefinition,
+    visitWithTypeInfo(typeInfo, {
+      Field: {
+        enter: (node, key, parent, path, ancestors) => {
+          const namedType = getNamedType(typeInfo.getType());
+          const typeName = namedType?.name;
+          const parentType = typeInfo.getParentType();
+          const parentNamedType = parentType && getNamedType(parentType);
+          const parentTypeName = parentNamedType?.name;
+
+          const isConnectionCandidate =
+            !!parentTypeName?.endsWith('Connection') &&
+            !!typeName.endsWith('Edge') &&
+            !!previousNode;
+
+          if (typeName.endsWith('Connection')) {
+            previousNode = {
+              node,
+              namedType: getNamedType(typeInfo.getType()),
+              parent: parentNamedType,
+              field: parentNamedType?.getFields()?.[node.name.value],
+            };
+          } else if (isConnectionCandidate) {
+            const parentField = previousNode?.field;
+            const parentHasConnectionArgs =
+              hasArgByNameAndTypeName(parentField, 'first', 'Int') &&
+              hasArgByNameAndTypeName(parentField, 'after', 'String');
+
+            const hasConnectionSelection =
+              node.name?.value === 'edges' &&
+              node.selectionSet?.selections?.some(
+                sel => sel.name?.value === 'node',
+              );
+
+            const hasPageInfoType = !!getNamedType(
+              parentNamedType?.getFields()?.['pageInfo']?.type,
+            )?.name?.endsWith('PageInfo');
+
+            const conformsToConnectionSpec =
+              parentHasConnectionArgs &&
+              hasConnectionSelection &&
+              hasPageInfoType;
+
+            if (conformsToConnectionSpec) {
+              paginationSites.push([node, [...ancestors]]);
+            }
+
+            previousNode = null;
+          } else {
+            previousNode = null;
+          }
+        },
+      },
+    }),
+  );
+
+  return paginationSites;
+};
+
+const baseFragmentDefinition = {
+  kind: 'FragmentDefinition',
+  typeCondition: {
+    kind: 'NamedType',
+    name: {
+      kind: 'Name',
+      value: 'TypeName',
+    },
+  },
+  selectionSet: {
+    kind: 'SelectionSet',
+    selections: [],
+  },
+  name: {
+    kind: 'Name',
+    value: 'PlaceholderFragment',
+  },
+  directives: [],
+};
+
+export const extractNodeToConnectionFragment = ({
+  schema,
+  node,
+  moduleName,
+  propName,
+  typeConditionName,
+}: {
+  schema: GraphQLSchema,
+  node: FieldNode,
+  moduleName: string,
+  propName: string,
+  typeConditionName: string,
+}) => {
+  const fragmentName = `${moduleName}_${propName}`;
+
+  const canonicalArgumentNameMapping = {
+    first: 'count',
+    after: 'cursor',
+    last: 'last',
+    before: 'cursor',
+  };
+  const connectionFirstArgument = {
+    kind: 'Argument',
+    name: {
+      kind: 'Name',
+      value: 'first',
+    },
+    value: {
+      kind: 'Variable',
+      name: {
+        kind: 'Name',
+        value: 'count',
+      },
+    },
+  };
+
+  const connectionAfterArgument = {
+    kind: 'Argument',
+    name: {
+      kind: 'Name',
+      value: 'after',
+    },
+    value: {
+      kind: 'Variable',
+      name: {
+        kind: 'Name',
+        value: 'cursor',
+      },
+    },
+  };
+
+  const hasFirstArgument = (node.arguments || []).some(
+    arg => arg.name.value === 'first',
+  );
+  const hasAfterArgument = (node.arguments || []).some(
+    arg => arg.name.value === 'after',
+  );
+
+  const namedType = schema.getType(typeConditionName);
+
+  const namedTypeHasId = !!(namedType && namedType.getFields().id);
+
+  const args = node?.arguments?.map(arg => {
+    const variableName = canonicalArgumentNameMapping[arg.name.value];
+
+    return !!variableName
+      ? {
+          ...arg,
+          value: {
+            ...arg.value,
+            kind: 'Variable',
+            name: {kind: 'Name', value: variableName},
+          },
+        }
+      : arg;
+  });
+
+  if (!hasFirstArgument) {
+    args.push(connectionFirstArgument);
+  }
+
+  if (!hasAfterArgument) {
+    args.push(connectionAfterArgument);
+  }
+
+  const tempFragmentDefinition = {
+    ...baseFragmentDefinition,
+    name: {...baseFragmentDefinition.name, value: fragmentName},
+    typeCondition: {
+      ...baseFragmentDefinition.typeCondition,
+      name: {
+        ...baseFragmentDefinition.typeCondition.name,
+        value: typeConditionName,
+      },
+    },
+    directives: [],
+    selectionSet: {
+      ...baseFragmentDefinition.selectionSet,
+      selections: [
+        // Add id field automatically for store-based connections like Relay
+        ...(namedTypeHasId
+          ? [
+              {
+                kind: 'Field',
+                name: {
+                  kind: 'Name',
+                  value: 'id',
+                },
+                directives: [],
+              },
+            ]
+          : []),
+        {
+          ...node,
+          directives: [
+            {
+              kind: 'Directive',
+              name: {
+                kind: 'Name',
+                value: 'connection',
+              },
+              arguments: [
+                {
+                  kind: 'Argument',
+                  name: {kind: 'Name', value: 'key'},
+                  value: {
+                    kind: 'StringValue',
+                    value: `${fragmentName}_${node.name.value}`,
+                    block: false,
+                  },
+                },
+              ],
+            },
+          ],
+          arguments: [...(args || [])],
+        },
+      ],
+    },
+  };
+
+  const allFragmentVariables = findFragmentVariables(
+    schema,
+    tempFragmentDefinition,
+  );
+
+  const fragmentVariables =
+    allFragmentVariables[tempFragmentDefinition.name.value] || [];
+
+  const usedArgumentDefinition = fragmentVariables
+    .filter(Boolean)
+    .map(({name, type}) => {
+      if (!['count', 'first', 'after', 'cursor'].includes(name)) {
+        return {name: name, type: type.toString()};
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  const hasCountArgumentDefinition = usedArgumentDefinition.some(
+    argDef => argDef.name === 'count',
+  );
+  const hasCursorArgumentDefinition = usedArgumentDefinition.some(
+    argDef => argDef.name === 'cursor',
+  );
+
+  const baseArgumentDefinitions = [
+    hasCountArgumentDefinition
+      ? null
+      : {
+          name: 'count',
+          type: 'Int',
+          defaultValue: {kind: 'IntValue', value: '10'},
+        },
+    hasCursorArgumentDefinition ? null : {name: 'cursor', type: 'String'},
+  ].filter(Boolean);
+
+  const argumentDefinitions = makeArgumentsDefinitionsDirective([
+    ...baseArgumentDefinitions,
+    ...usedArgumentDefinition,
+  ]);
+
+  return {...tempFragmentDefinition, directives: [argumentDefinitions]};
+};
+
+export const astByNamedPath = (ast, namedPath, customVisitor) => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+  let target;
+  let baseVisitor = {
+    Field: (node, key, parent, path, ancestors) => {
+      const isNextTargetNode = node.name.value === nextName;
+      if (remaining?.length === 1 && isNextTargetNode) {
+        target = {node, key, parent, path, ancestors: [...ancestors]};
+        return BREAK;
+      } else if (isNextTargetNode) {
+        remaining = remaining.slice(1);
+        nextName = remaining[0];
+      }
+    },
+  };
+
+  let visitor = customVisitor ? customVisitor(baseVisitor) : baseVisitor;
+
+  visit(ast, visitor);
+  return target;
+};
+
+export const findUnusedOperationVariables = (
+  operationDefinition: OperationDefinitionNode,
+) => {
+  const variableNames = (operationDefinition.variableDefinitions || []).map(
+    def => {
+      return def.variable.name.value;
+    },
+  );
+
+  let unusedVariables = new Set(variableNames);
+
+  let baseVisitor = {
+    Variable: (node, key, parent, path, ancestors) => {
+      if (variableNames.includes(node.name.value)) {
+        unusedVariables.delete(node.name.value);
+      }
+    },
+  };
+
+  let visitor = baseVisitor;
+
+  visit(operationDefinition.selectionSet, visitor);
+  return unusedVariables;
+};
+
+export const pruneOperationToNamedPath = (
+  operationDefinition: OperationDefinitionNode,
+  namedPath: NamedPath,
+): OperationDefinitionNode => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+
+  const processNode = (node, key, parent, path, ancestors) => {
+    const isNextTargetNode = node.name.value === nextName;
+    if (remaining?.length === 1 && isNextTargetNode) {
+      return false;
+    } else if (isNextTargetNode) {
+      remaining = remaining.slice(1);
+      nextName = remaining[0];
+      return;
+    } else {
+      return null;
+    }
+  };
+
+  const result = visit(operationDefinition, {
+    Field: processNode,
+    FragmentSpread: processNode,
+  });
+
+  return result;
+};
+
+export const updateAstAtPath = (ast, namedPath, updater, customVisitor) => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+
+  let baseVisitor = {
+    Field: (node, key, parent, path, ancestors) => {
+      const isNextTargetNode = node.name.value === nextName;
+      if ((remaining || []).length === 1 && isNextTargetNode) {
+        return updater(node, key, parent, path, ancestors);
+      } else if ((remaining || []).length === 0) {
+        return false;
+      } else if (isNextTargetNode) {
+        remaining = remaining.slice(1);
+        nextName = remaining[0];
+      }
+    },
+  };
+
+  let visitor = customVisitor ? customVisitor(baseVisitor) : baseVisitor;
+
+  return visit(ast, visitor);
+};
+
+export const renameOperation = (
+  operationDefinition: OperationDefinitionNode,
+  name: string,
+): OperationDefinitionNode => {
+  const nameNode: NameNode = !!operationDefinition.name?.value
+    ? {...operationDefinition.name, value: name}
+    : {kind: 'Name', value: name};
+  return {...operationDefinition, name: nameNode};
+};
+
+export const makeAstDirective = ({
+  name,
+  args,
+}: {
+  name: string,
+  args: Array<any>,
+}) => {
+  return {
+    kind: 'Directive',
+    name: {
+      kind: 'Name',
+      value: name,
+    },
+    arguments: args,
+  };
+};
+
+export const makeArgumentsDefinitionsDirective = (
+  defs: Array<{
+    name: string,
+    type: string,
+    defaultValue?: {
+      kind: string,
+      value: any,
+    },
+  }>,
+) => {
+  const astDirective = makeAstDirective({
+    name: 'argumentDefinitions',
+    args: defs.map(def => {
+      const defaultValueField = !!def.defaultValue
+        ? [
+            {
+              kind: 'ObjectField',
+              name: {
+                kind: 'Name',
+                value: 'defaultValue',
+              },
+              value: {
+                kind: def.defaultValue.kind,
+                value: def.defaultValue.value,
+              },
+            },
+          ]
+        : [];
+
+      return {
+        kind: 'Argument',
+        name: {
+          kind: 'Name',
+          value: def.name,
+        },
+        value: {
+          kind: 'ObjectValue',
+          fields: [
+            {
+              kind: 'ObjectField',
+              name: {
+                kind: 'Name',
+                value: 'type',
+              },
+              value: {
+                kind: 'StringValue',
+                value: def.type,
+                block: false,
+              },
+            },
+            ...defaultValueField,
+          ],
+        },
+      };
+    }),
+  });
+
+  return astDirective;
+};
+
+export const makeArgumentsDirective = (
+  defs: Array<{
+    argName: string,
+    variableName: string,
+  }>,
+) => {
+  return makeAstDirective({
+    name: 'arguments',
+    args: defs.map(def => {
+      return {
+        kind: 'Argument',
+        name: {
+          kind: 'Name',
+          value: def.name,
+        },
+        value: {
+          kind: 'Variable',
+          name: {
+            kind: 'Name',
+            value: def.variableName,
+          },
+        },
+      };
+    }),
+  });
+};
+
+export const findFragmentVariables = (
+  schema: GraphQLSchema,
+  def: FragmentDefinitionNode,
+) => {
+  if (!schema) {
+    return {};
+  }
+
+  const typeInfo = new TypeInfo(schema);
+
+  let fragmentVariables = {};
+
+  visit(
+    def,
+    visitWithTypeInfo(typeInfo, {
+      Variable: function(node, key, parent, path, ancestors) {
+        const usedVariables = findVariableTypeFromAncestorPath(
+          schema,
+          def,
+          node,
+          ancestors,
+        );
+        const existingVariables = fragmentVariables[def.name.value] || [];
+        const alreadyHasVariable =
+          // TODO: Don't filter boolean, fix findVariableTypeFromAncestorPath
+          existingVariables
+            .filter(Boolean)
+            .some(existingDef => existingDef.name === def.name.value);
+        fragmentVariables[def.name.value] = alreadyHasVariable
+          ? existingVariables
+          : [...existingVariables, usedVariables];
+      },
+    }),
+  );
+
+  return fragmentVariables;
+};
+
 let findFragmentDependencies = (
+  schema: ?GraphQLSchema,
   operationDefinitions: Array<FragmentDefinitionNode>,
   def: OperationDefinitionNode | FragmentDefinitionNode,
 ): Array<FragmentDefinitionNode> => {
@@ -183,7 +886,9 @@ let findFragmentDependencies = (
     const namedFragments = selections
       .map(selection => {
         if (selection.kind === 'FragmentSpread') {
-          return fragmentByName(selection.name.value);
+          const fragmentDef = fragmentByName(selection.name.value);
+
+          return fragmentDef;
         } else {
           return null;
         }
@@ -212,6 +917,84 @@ let findFragmentDependencies = (
   const selectionSet = def.selectionSet;
 
   return findReferencedFragments(selectionSet);
+};
+
+let collectFragmentVariables = (
+  schema: ?GraphQLSchema,
+  operationDefinitions: Array<FragmentDefinitionNode>,
+): ShallowFragmentVariables => {
+  const entries = operationDefinitions
+    .map(fragmentDefinition => {
+      let usedVariables = {};
+
+      if (!!schema && fragmentDefinition.kind === 'FragmentDefinition') {
+        usedVariables = findFragmentVariables(schema, fragmentDefinition);
+      }
+
+      return usedVariables;
+    })
+    .reduce((acc, next) => Object.assign(acc, next), {});
+
+  return entries;
+};
+
+const computeDeepFragmentVariables = (
+  schema: GraphQLSchema,
+  operationDataList: Array<OperationData>,
+  shallowFragmentVariables: ShallowFragmentVariables,
+) => {
+  const fragmentByName = (name: string) => {
+    return operationDataList.find(
+      operationData => operationData.operationDefinition.name?.value === name,
+    );
+  };
+
+  const entries = operationDataList
+    .map(operationData => {
+      const operation = operationData.operationDefinition;
+      if (operation.kind === 'FragmentDefinition' && !!operation.name) {
+        const localVariables =
+          shallowFragmentVariables[operation.name.value] || [];
+        const visitedFragments = new Set();
+
+        const helper = deps => {
+          return deps.reduce((acc, dep) => {
+            const depName = dep.name.value;
+            if (visitedFragments.has(depName)) {
+              return acc;
+            } else {
+              visitedFragments.add(depName);
+              const depLocalVariables = shallowFragmentVariables[depName] || [];
+              const subDep = fragmentByName(depName);
+              if (subDep) {
+                const subDeps = helper(subDep.fragmentDependencies);
+                return {...acc, [depName]: depLocalVariables, ...subDeps};
+              } else {
+                return {...acc, [depName]: depLocalVariables};
+              }
+            }
+          }, []);
+        };
+
+        let deepFragmentVariables = helper(operationData.fragmentDependencies);
+
+        return [
+          operation.name.value,
+          {
+            shallow: localVariables,
+            deep: {
+              [operation.name.value]: localVariables,
+              ...deepFragmentVariables,
+            },
+          },
+        ];
+      } else {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return Object.fromEntries(entries);
 };
 
 let operationNodesMemo: [
@@ -446,7 +1229,10 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
+  _generateCodesandbox = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+  ) => {
     this.setState({codesandboxResult: {type: 'loading'}});
     const snippet = this._activeSnippet();
     if (!snippet) {
@@ -468,11 +1254,15 @@ class CodeExporter extends Component<Props, State> {
       return;
     }
     try {
-      const sandboxResult = await createCodesandbox(
-        generateFiles(
-          this._collectOptions(snippet, operationDataList, this.props.schema),
-        ),
+      const generateOptions = this._collectOptions(
+        snippet,
+        operationDataList,
+        this.props.schema,
+        fragmentVariables,
       );
+      const files = generateFiles(generateOptions);
+
+      const sandboxResult = await createCodesandbox(files);
       this.setState({
         codesandboxResult: {type: 'success', ...sandboxResult},
       });
@@ -493,9 +1283,11 @@ class CodeExporter extends Component<Props, State> {
     snippet: Snippet,
     operationDataList: Array<OperationData>,
     schema: ?GraphQLSchema,
+    fragmentVariables,
   ): GenerateOptions => {
     const {serverUrl, context = {}, headers = {}} = this.props;
     const optionValues = this.getOptionValues(snippet);
+
     return {
       serverUrl,
       headers,
@@ -503,6 +1295,7 @@ class CodeExporter extends Component<Props, State> {
       operationDataList,
       options: optionValues,
       schema,
+      fragmentVariables,
     };
   };
 
@@ -514,16 +1307,24 @@ class CodeExporter extends Component<Props, State> {
     const {name, language, generate} = snippet;
 
     const {
-      operationDefinitions: operationDefinitions,
-      fragmentDefinitions: fragmentDefinitions,
-      rawOperationDataList: rawOperationDataList,
-      operationDataList: operationDataList,
-    } = computeOperationDataList({query, variables});
+      fragmentVariables,
+      operationDefinitions,
+      operationDataList,
+    } = computeOperationDataList({
+      query,
+      variables,
+      schema: this.props.schema,
+    });
 
     const optionValues: Array<OperationData> = this.getOptionValues(snippet);
     const codeSnippet = operationDefinitions.length
       ? generate(
-          this._collectOptions(snippet, operationDataList, this.props.schema),
+          this._collectOptions(
+            snippet,
+            operationDataList,
+            this.props.schema,
+            fragmentVariables,
+          ),
         )
       : null;
 
@@ -534,7 +1335,7 @@ class CodeExporter extends Component<Props, State> {
     ].sort((a, b) => a.localeCompare(b));
 
     return (
-      <div className="graphiql-code-exporter" style={{minWidth: 410}}>
+      <div className="graphiql-code-exporter" style={{minWidth: 910}}>
         <div
           style={{
             fontFamily:
@@ -617,7 +1418,12 @@ class CodeExporter extends Component<Props, State> {
                 }}
                 type="button"
                 disabled={!codeSnippet}
-                onClick={() => this._generateCodesandbox(operationDataList)}>
+                onClick={() =>
+                  this._generateCodesandbox(
+                    operationDataList,
+                    fragmentVariables,
+                  )
+                }>
                 {codesandboxIcon}{' '}
                 <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
               </button>
