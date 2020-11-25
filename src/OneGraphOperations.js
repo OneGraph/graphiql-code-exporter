@@ -268,26 +268,6 @@ export function executeCreateRef({repositoryId, name, oid}) {
   return fetchOneGraph(operationsDoc, 'CreateRef', {repositoryId, name, oid});
 }
 
-window.executeUpdateRef = executeUpdateRef;
-
-window.sha1 = sha1;
-
-function download(filename, text) {
-  var element = document.createElement('a');
-  element.setAttribute(
-    'href',
-    'data:text/plain;charset=utf-8,' + encodeURIComponent(text),
-  );
-  element.setAttribute('download', filename);
-
-  element.style.display = 'none';
-  document.body.appendChild(element);
-
-  element.click();
-
-  document.body.removeChild(element);
-}
-
 type TreeFiles = {
   [string]: {|
     content: string | Object,
@@ -323,12 +303,6 @@ export const pushFilesToBranch = async function({
   | {error: string}
   | null,
 > {
-  const fileExample = {
-    path: 'another.js',
-    mode: '100644',
-    content: 'let isJs = true',
-  };
-
   const fileHashes = rawTreeFiles.reduce((acc, next) => {
     acc[next.path] = computeGitHash(next.content);
     return acc;
@@ -345,6 +319,7 @@ export const pushFilesToBranch = async function({
   let headRefNodeId = defaultBranchRef?.id;
   let headRefCommitSha = defaultBranchRef?.target?.oid;
   let headRefTreeSha = defaultBranchRef?.target?.tree?.oid;
+  // eslint-disable-next-line
   let headRefTreeNodeId = defaultBranchRef?.target?.tree?.id;
 
   let existingFiles =
@@ -362,6 +337,7 @@ export const pushFilesToBranch = async function({
       fullyQualifiedRefName,
     );
     let branchRef = filesOnRefResult?.data?.gitHub?.repository?.ref;
+    // eslint-disable-next-line
     let branchRefName = branchRef?.name;
 
     if (!branchRef) {
