@@ -8,6 +8,7 @@ import {
   GraphQLObjectType,
   parse,
   print,
+  printSchema,
   visit,
   visitWithTypeInfo,
   TypeInfo,
@@ -15,6 +16,9 @@ import {
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
 import toposort from './toposort.js';
+import Modal from './Modal';
+
+import * as OG from './OneGraphOperations';
 
 import type {
   GraphQLSchema,
@@ -27,6 +31,8 @@ import type {
   OperationTypeNode,
   SelectionSetNode,
 } from 'graphql';
+
+import CSS from './CodeExporter.css';
 
 function formatVariableName(name: string) {
   var uppercasePattern = /[A-Z]/g;
@@ -65,6 +71,53 @@ const codesandboxIcon = (
         fill="#000000"
       />
     </g>
+  </svg>
+);
+
+const gitHubIcon = (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg">
+    <title>{'GitHub icon'}</title>
+    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+  </svg>
+);
+
+const gearIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24">
+    <path d="M24 13.616v-3.232c-1.651-.587-2.694-.752-3.219-2.019v-.001c-.527-1.271.1-2.134.847-3.707l-2.285-2.285c-1.561.742-2.433 1.375-3.707.847h-.001C14.366 2.693 14.2 1.643 13.616 0h-3.232c-.582 1.635-.749 2.692-2.019 3.219h-.001c-1.271.528-2.132-.098-3.707-.847L2.372 4.657c.745 1.568 1.375 2.434.847 3.707C2.692 9.635 1.635 9.802 0 10.384v3.232c1.632.58 2.692.749 3.219 2.019.53 1.282-.114 2.166-.847 3.707l2.285 2.286c1.562-.743 2.434-1.375 3.707-.847h.001c1.27.526 1.436 1.579 2.019 3.219h3.232c.582-1.636.75-2.69 2.027-3.222h.001c1.262-.524 2.12.101 3.698.851l2.285-2.286c-.744-1.563-1.375-2.433-.848-3.706.527-1.271 1.588-1.44 3.221-2.021zM12 16a4 4 0 110-8 4 4 0 010 8z" />
+  </svg>
+);
+
+const downArrow = props => (
+  <svg width="14" height="8" {...props}>
+    <path fill="#666" d="M 5 1.5 L 14 1.5 L 9.5 7 z"></path>
+  </svg>
+);
+
+const gitPushIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 800 800">
+    <path d="M128 64C57.344 64 0 121.344 0 192c0 47.219 25.906 88.062 64 110.281V721.75C25.906 743.938 0 784.75 0 832c0 70.625 57.344 128 128 128s128-57.375 128-128c0-47.25-25.844-88.062-64-110.25V302.281c38.156-22.219 64-63.062 64-110.281 0-70.656-57.344-128-128-128zm0 832c-35.312 0-64-28.625-64-64 0-35.312 28.688-64 64-64 35.406 0 64 28.688 64 64 0 35.375-28.594 64-64 64zm0-640c-35.312 0-64-28.594-64-64s28.688-64 64-64c35.406 0 64 28.594 64 64s-28.594 64-64 64zm576 465.75V320c0-192.5-192-192-192-192h-64V0L256 192l192 192V256h64c56.438 0 64 64 64 64v401.75c-38.125 22.188-64 62.938-64 110.25 0 70.625 57.375 128 128 128s128-57.375 128-128c0-47.25-25.875-88.062-64-110.25zM640 896c-35.312 0-64-28.625-64-64 0-35.312 28.688-64 64-64 35.375 0 64 28.688 64 64 0 35.375-28.625 64-64 64z"></path>
+  </svg>
+);
+
+const gitNewRepoIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 1024 1024">
+    <path d="M512 320H384v128H256v128h128v128h128V576h128V448H512V320zM832 64H64C0 64 0 128 0 128v768s0 64 64 64h768c64 0 64-64 64-64V128s0-64-64-64zm-64 736c0 32-32 32-32 32H160s-32 0-32-32V224c0-32 32-32 32-32h576s32 0 32 32v576z"></path>
   </svg>
 );
 
@@ -119,6 +172,10 @@ export type Snippet = {
 
 type NamedPath = Array<string>;
 
+const snippetStorageName = snippet => {
+  return `${snippet.language}:${snippet.name}`;
+};
+
 export const namedPathOfAncestors = (
   ancestors: ?$ReadOnlyArray<Array<any>>,
 ): namedPath =>
@@ -129,6 +186,8 @@ export const namedPathOfAncestors = (
     switch (next.kind) {
       case 'Field':
         return [...acc, next.name.value];
+      case 'InlineFragment':
+        return [...acc, `$inlineFragment.${next.typeCondition.name.value}`];
       case 'Argument':
         return [...acc, `$arg.${next.name.value}`];
       default:
@@ -189,10 +248,12 @@ const findVariableTypeFromAncestorPath = (
       }
     }
 
+    window.getNamedType = getNamedType;
+
     const [next, ...rest] = path;
     if (!next) {
       console.warn(
-        'Next is null before finding target in ',
+        'Next is null before finding target (this may be normal) ',
         variable,
         namePath,
         definitionNode,
@@ -200,6 +261,8 @@ const findVariableTypeFromAncestorPath = (
       return;
     }
     const nextIsArg = next.startsWith('$arg.');
+    const nextIsInlineFragment = next.startsWith('$inlineFragment.');
+
     if (nextIsArg) {
       const argName = next.replace('$arg.', '');
       const arg = argByName(parentField, argName);
@@ -212,6 +275,13 @@ const findVariableTypeFromAncestorPath = (
       if (!!inputObj) {
         return argObjectValueHelper(inputObj, rest);
       }
+    } else if (nextIsInlineFragment) {
+      const typeName = next.replace('$inlineFragment.', '');
+      const type = schema.getType(typeName);
+      const namedType = type && getNamedType(type);
+      const field = namedType.getFields()[next];
+
+      return helper(namedType, rest, field);
     } else {
       const field = obj.getFields()[next];
       const namedType = getNamedType(field.type);
@@ -518,6 +588,10 @@ export const extractNodeToConnectionFragment = ({
     args.push(connectionAfterArgument);
   }
 
+  const connectionKeyName = `${fragmentName}_${(node.alias &&
+    node.alias.value) ||
+    node.name.value}`;
+
   const tempFragmentDefinition = {
     ...baseFragmentDefinition,
     name: {...baseFragmentDefinition.name, value: fragmentName},
@@ -560,7 +634,7 @@ export const extractNodeToConnectionFragment = ({
                   name: {kind: 'Name', value: 'key'},
                   value: {
                     kind: 'StringValue',
-                    value: `${fragmentName}_${node.name.value}`,
+                    value: connectionKeyName,
                     block: false,
                   },
                 },
@@ -623,6 +697,23 @@ export const astByNamedPath = (ast, namedPath, customVisitor) => {
   let nextName = remaining[0];
   let target;
   let baseVisitor = {
+    InlineFragment: (node, key, parent, path, ancestors) => {
+      const nextIsInlineFragment = nextName.startsWith('$inlineFragment.');
+      if (nextIsInlineFragment) {
+        const typeName = nextName.replace('$inlineFragment.', '');
+        const isNextTargetNode = node.typeCondition.name.value === typeName;
+
+        if (isNextTargetNode) {
+          if (remaining?.length === 1 && isNextTargetNode) {
+            target = {node, key, parent, path, ancestors: [...ancestors]};
+            return BREAK;
+          } else if (isNextTargetNode) {
+            remaining = remaining.slice(1);
+            nextName = remaining[0];
+          }
+        }
+      }
+    },
     Field: (node, key, parent, path, ancestors) => {
       const isNextTargetNode = node.name.value === nextName;
       if (remaining?.length === 1 && isNextTargetNode) {
@@ -1169,6 +1260,26 @@ type Props = {|
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
   schema: ?GraphQLSchema,
 |};
+
+type GitHubRepositoryIdentifier = {|
+  owner: string,
+  name: string,
+  branch: string,
+|};
+
+const descriptionOfGitHubRepositoryIdentifier = (
+  repoIdentifier: GitHubRepositoryIdentifier,
+): string => {
+  return `${repoIdentifier.owner}/${repoIdentifier.name}:"${repoIdentifier.branch}"`;
+};
+type GitHubInfo = {|
+  login: ?string,
+  targetRepo: ?GitHubRepositoryIdentifier,
+  availableRepositories: ?Array<GitHubRepositoryIdentifier>,
+  repoSearch: ?string,
+  searchOpen: boolean,
+|};
+
 type State = {|
   showCopiedTooltip: boolean,
   optionValuesBySnippet: Map<Snippet, OptionValues>,
@@ -1178,6 +1289,13 @@ type State = {|
     | {type: 'loading'}
     | {type: 'success', sandboxId: string}
     | {type: 'error', error: string},
+  gitHubPushResult:
+    | null
+    | {type: 'loading'}
+    | {type: 'success'}
+    | {type: 'error', error: string},
+  gitHubInfo: ?GitHubInfo,
+  forceOverwriteFiles: {[string]: boolean},
 |};
 
 class CodeExporter extends Component<Props, State> {
@@ -1187,6 +1305,9 @@ class CodeExporter extends Component<Props, State> {
     optionValuesBySnippet: new Map(),
     snippet: null,
     codesandboxResult: null,
+    gitHubPushResult: null,
+    gitHubInfo: {searchOpen: false},
+    snippetStorage: null,
   };
 
   _activeSnippet = (): Snippet =>
@@ -1194,7 +1315,12 @@ class CodeExporter extends Component<Props, State> {
 
   setSnippet = (snippet: Snippet) => {
     this.props.onSelectSnippet && this.props.onSelectSnippet(snippet);
-    this.setState({snippet, codesandboxResult: null});
+
+    const snippetStorage = JSON.parse(
+      localStorage.getItem(snippetStorageName(snippet)) || '{}',
+    );
+
+    this.setState({snippet, snippetStorage, codesandboxResult: null});
   };
 
   setLanguage = (language: string) => {
@@ -1229,11 +1355,10 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  _generateCodesandbox = async (
+  _generateFiles = async (
     operationDataList: Array<OperationData>,
     fragmentVariables,
   ) => {
-    this.setState({codesandboxResult: {type: 'loading'}});
     const snippet = this._activeSnippet();
     if (!snippet) {
       // Shouldn't be able to get in this state, but just in case...
@@ -1254,13 +1379,42 @@ class CodeExporter extends Component<Props, State> {
       return;
     }
     try {
+      const {query, variables = {}} = this.props;
+
+      const {fragmentVariables, operationDataList} = computeOperationDataList({
+        query,
+        variables,
+        schema: this.props.schema,
+      });
+
       const generateOptions = this._collectOptions(
         snippet,
         operationDataList,
         this.props.schema,
         fragmentVariables,
       );
+
       const files = generateFiles(generateOptions);
+
+      return files;
+    } catch (e) {
+      console.error('Error generating files', e);
+    }
+  };
+
+  _generateCodesandbox = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+  ) => {
+    this.setState({codesandboxResult: {type: 'loading'}});
+
+    try {
+      const files = this._generateFiles(operationDataList, fragmentVariables);
+
+      if (!files) {
+        console.warn('No files generated');
+        return;
+      }
 
       const sandboxResult = await createCodesandbox(files);
       this.setState({
@@ -1274,6 +1428,110 @@ class CodeExporter extends Component<Props, State> {
         codesandboxResult: {
           type: 'error',
           error: 'Failed to generate CodeSandbox',
+        },
+      });
+    }
+  };
+
+  _pushChangesToGitHub = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+    fileOverwriteList: {[string]: boolean},
+  ) => {
+    this.setState({gitHubPushResult: {type: 'loading'}});
+
+    const targetRepo = this.state.gitHubInfo?.targetRepo;
+
+    if (!targetRepo) {
+      this.setState({
+        gitHubPushResult: {
+          type: 'error',
+          error: 'You must select a target GitHub repository to sync with',
+        },
+      });
+
+      return;
+    }
+
+    try {
+      const files = await this._generateFiles(
+        operationDataList,
+        fragmentVariables,
+      );
+
+      if (!files) {
+        console.warn('No files generated');
+        return;
+      }
+
+      const transformedFiles = Object.entries(files)
+        .filter(([path, details]) => {
+          return typeof fileOverwriteList[path] === 'undefined'
+            ? true
+            : fileOverwriteList[path];
+        })
+        .map(([path, details]) => {
+          const fileContent =
+            typeof details.content === 'object'
+              ? JSON.stringify(details.content, null, 2)
+              : details.content;
+          return {
+            path: path,
+            mode: '100644',
+            content: fileContent,
+          };
+        });
+
+      const acceptOverrides = Object.entries(fileOverwriteList).length > 0;
+
+      const pushResults = await OG.pushFilesToBranch({
+        owner: targetRepo.owner,
+        name: targetRepo.name,
+        branch: targetRepo.branch,
+        message: 'Updates from OneGraph code generator',
+        treeFiles: transformedFiles,
+        acceptOverrides,
+      });
+
+      if (!!pushResults) {
+        if (typeof pushResults.error === 'string') {
+          this.setState({
+            gitHubPushResult: {
+              type: 'error',
+              error: pushResults.error,
+            },
+          });
+        } else if (!!pushResults.confirmationNeeded) {
+          this.setState(oldState => {
+            return {
+              gitHubPushResult: {
+                type: 'error',
+                error: 'Confirm file overwrite',
+              },
+              gitHubConfirmationModal: {
+                changeset: pushResults.changeset,
+              },
+            };
+          });
+        } else if (!!pushResults.ok) {
+          this.setState({
+            gitHubPushResult: {
+              type: 'success',
+            },
+          });
+          setTimeout(() => {
+            this.setState({
+              gitHubPushResult: null,
+            });
+          }, 2500);
+        }
+      }
+    } catch (e) {
+      console.error('Error in GitHub synch', e);
+      this.setState({
+        gitHubPushResult: {
+          type: 'error',
+          error: 'Failed to sync with GitHub',
         },
       });
     }
@@ -1299,12 +1557,98 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
+  setOverwritePath({path, overwrite}: {path: string, overwrite: boolean}) {
+    const newSnippetStorage = {
+      ...this.state.snippetStorage,
+      overwriteSettings: {
+        ...(this.state.snippetStorage?.overwriteSettings || {}),
+        [path]: overwrite,
+      },
+    };
+    localStorage.setItem(
+      snippetStorageName(this._activeSnippet()),
+      JSON.stringify(newSnippetStorage),
+    );
+    this.setState({snippetStorage: newSnippetStorage});
+  }
+
+  setTargetRepo(owner: string, name: string, branch: string) {
+    const newSnippetStorage = {
+      ...this.state.snippetStorage,
+      targetRepo: {
+        owner: owner,
+        name: name,
+        branch: branch,
+      },
+    };
+
+    localStorage.setItem(
+      snippetStorageName(this._activeSnippet()),
+      JSON.stringify(newSnippetStorage),
+    );
+
+    this.setState(oldState => {
+      return {
+        ...oldState,
+        gitHubInfo: {
+          ...oldState.gitHubInfo,
+          searchOpen: false,
+          targetRepo: {
+            owner: owner,
+            name: name,
+            branch: branch,
+          },
+        },
+      };
+    });
+  }
+
+  componentDidMount() {
+    const snippetStorage = JSON.parse(
+      localStorage.getItem(snippetStorageName(this._activeSnippet())) || '{}',
+    );
+
+    this.setState({snippetStorage: snippetStorage});
+
+    OG.fetchFindMeOnGitHub().then(result => {
+      const rawGitHubInfo = result.data?.me?.github;
+      if (!!rawGitHubInfo) {
+        window.rawGitHubInfo = rawGitHubInfo;
+        const availableRepositories = rawGitHubInfo.repositories.edges.map(
+          edge => {
+            const [owner, name] = edge.node.nameWithOwner.split('/');
+            return {
+              owner: owner,
+              name: name,
+              branch: 'main',
+            };
+          },
+        );
+
+        const defaultRepo = snippetStorage?.targetRepo;
+
+        const gitHubInfo = {
+          login: rawGitHubInfo.login,
+          availableRepositories: availableRepositories,
+          targetRepo: defaultRepo || availableRepositories[0],
+        };
+
+        this.setState(oldState => ({
+          ...oldState,
+          gitHubInfo: {...oldState.gitHubInfo, ...gitHubInfo},
+        }));
+      }
+    });
+  }
+
   render() {
     const {query, snippets, variables = {}} = this.props;
-    const {showCopiedTooltip, codesandboxResult} = this.state;
+    const {showCopiedTooltip, codesandboxResult, gitHubPushResult} = this.state;
 
     const snippet = this._activeSnippet();
     const {name, language, generate} = snippet;
+
+    const gitHubSearchOpen = this.state.gitHubInfo?.searchOpen;
 
     const {
       fragmentVariables,
@@ -1400,33 +1744,183 @@ class CodeExporter extends Component<Props, State> {
           )}
           {supportsCodesandbox ? (
             <div style={{padding: '0 7px 8px'}}>
-              <button
-                className={'toolbar-button'}
-                style={{
-                  backgroundColor: 'white',
-                  border: 'none',
-                  outline: 'none',
-                  maxWidth: 320,
-                  display: 'flex',
-                  ...(codeSnippet
-                    ? {}
-                    : {
-                        opacity: 0.6,
-                        cursor: 'default',
-                        background: '#ececec',
-                      }),
-                }}
-                type="button"
-                disabled={!codeSnippet}
-                onClick={() =>
-                  this._generateCodesandbox(
-                    operationDataList,
-                    fragmentVariables,
-                  )
-                }>
-                {codesandboxIcon}{' '}
-                <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
-              </button>
+              <div style={{display: 'inline-blick'}}>
+                {!!this.state.gitHubInfo ? (
+                  <ToolbarMenu
+                    label={`Sync ${
+                      this.state.gitHubInfo?.targetRepo
+                        ? descriptionOfGitHubRepositoryIdentifier(
+                            this.state.gitHubInfo.targetRepo,
+                          )
+                        : null
+                    }`}
+                    title="GitHub Repository and Branch">
+                    <li
+                      onClick={() => {
+                        this._pushChangesToGitHub(
+                          operationDataList,
+                          fragmentVariables,
+                          {},
+                        );
+                      }}>
+                      {gitPushIcon} Push changes
+                    </li>
+                    <li
+                      onClick={async () => {
+                        const repoName = prompt(
+                          'Name of new GitHub repository',
+                        );
+                        if (!repoName.trim()) {
+                          return;
+                        }
+
+                        const result = await OG.executeCreateRepo(repoName);
+                        const repo =
+                          result?.data?.gitHub?.makeRestCall?.post?.jsonBody;
+
+                        if (!repo) {
+                          this.setState({
+                            gitHubPushResult: {
+                              type: 'error',
+                              error: 'Failed to create GitHub repository',
+                            },
+                          });
+                          return;
+                        }
+
+                        const defaultRepo = {
+                          name: repo?.name,
+                          owner: repo?.owner?.login,
+                          branch: 'main',
+                        };
+
+                        this.setState(oldState => ({
+                          ...oldState,
+                          gitHubInfo: {
+                            ...oldState.gitHubInfo,
+                            searchOpen: false,
+                            targetRepo: defaultRepo,
+                          },
+                        }));
+                      }}>
+                      {gitNewRepoIcon} New repository
+                    </li>
+                    <li
+                      style={
+                        gitHubSearchOpen
+                          ? {
+                              borderBottom: '1px solid #aaa',
+                              marginBottom: '2px',
+                            }
+                          : null
+                      }
+                      onClick={event => {
+                        event.stopPropagation();
+                        event.nativeEvent.stopImmediatePropagation();
+                        this.setState(oldState => {
+                          return {
+                            ...oldState,
+                            gitHubInfo: {
+                              ...oldState.gitHubInfo,
+                              searchOpen: !gitHubSearchOpen,
+                            },
+                          };
+                        });
+                      }}
+                      onMouseDown={event => {
+                        event.stopPropagation();
+                        event.nativeEvent.stopImmediatePropagation();
+                        return false;
+                      }}>
+                      Change repository{' '}
+                      {downArrow(
+                        gitHubSearchOpen
+                          ? null
+                          : {style: {transform: 'rotate(-90deg)'}},
+                      )}
+                    </li>
+                    {gitHubSearchOpen ? (
+                      <li style={{paddingTop: '2px'}}>
+                        <input
+                          placeholder="Search"
+                          style={{
+                            border: 'none',
+                            width: '100%',
+                            borderRadius: '64px',
+                            margin: '2px',
+                            paddingLeft: '6px',
+                          }}
+                          onClick={event => {
+                            event.stopPropagation();
+                            event.nativeEvent.stopImmediatePropagation();
+                          }}
+                          onMouseDown={event => {
+                            event.stopPropagation();
+                            event.nativeEvent.stopImmediatePropagation();
+                            return false;
+                          }}
+                          onChange={event => {
+                            const value = event.target.value;
+                            let repoSearch = value;
+                            if (value.trim() === '') {
+                              repoSearch = null;
+                            }
+
+                            this.setState(oldState => {
+                              return {
+                                ...oldState,
+                                gitHubInfo: {
+                                  ...oldState.gitHubInfo,
+                                  repoSearch,
+                                },
+                              };
+                            });
+                          }}
+                          type="text"
+                        />
+                      </li>
+                    ) : null}
+                    {gitHubSearchOpen
+                      ? (this.state.gitHubInfo?.availableRepositories || [])
+                          .map((repoInfo: GitHubRepositoryIdentifier) => {
+                            const nameWithOwner = `${repoInfo.owner}/${repoInfo.name}`;
+
+                            if (
+                              this.state.gitHubInfo?.repoSearch &&
+                              !nameWithOwner.match(
+                                this.state.gitHubInfo?.repoSearch,
+                              )
+                            ) {
+                              return null;
+                            }
+
+                            return (
+                              <li
+                                key={nameWithOwner}
+                                onClick={() => {
+                                  const branchName = prompt(
+                                    'Which branch should we push to?',
+                                  );
+
+                                  if (!branchName.trim()) {
+                                    return;
+                                  }
+
+                                  this.setTargetRepo(
+                                    repoInfo.owner,
+                                    repoInfo.name,
+                                    branchName,
+                                  );
+                                }}>
+                                {nameWithOwner}
+                              </li>
+                            );
+                          })
+                          .filter(Boolean)
+                      : null}
+                  </ToolbarMenu>
+                ) : null}
+              </div>
               {codesandboxResult ? (
                 <div style={{paddingLeft: 5, paddingTop: 5}}>
                   {codesandboxResult.type === 'loading' ? (
@@ -1439,6 +1933,22 @@ class CodeExporter extends Component<Props, State> {
                       target="_blank"
                       href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
+                    </a>
+                  )}
+                </div>
+              ) : null}
+              {gitHubPushResult ? (
+                <div style={{paddingLeft: 5, paddingTop: 5}}>
+                  {gitHubPushResult.type === 'loading' ? (
+                    'Loading...'
+                  ) : gitHubPushResult.type === 'error' ? (
+                    `Error: ${gitHubPushResult.error}`
+                  ) : (
+                    <a
+                      href={`https://github.com/${this.state.gitHubInfo?.targetRepo?.owner}/${this.state.gitHubInfo?.targetRepo?.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      Files synchronized
                     </a>
                   )}
                 </div>
@@ -1511,6 +2021,127 @@ class CodeExporter extends Component<Props, State> {
             </div>
           )}
         </div>
+        {!!this.state.gitHubConfirmationModal ? (
+          <Modal show={!!this.state.gitHubConfirmationModal}>
+            <div class="flex-wrapper">
+              <header class="header">
+                <h1>File change summary</h1>
+              </header>
+              <section class="content">
+                <div class="columns">
+                  <main class="changed">
+                    <h4>
+                      These files have changed in{' '}
+                      <code>
+                        {this.state.gitHubInfo.targetRepo.owner}/
+                        {this.state.gitHubInfo.targetRepo.name}
+                      </code>{' '}
+                      on the{' '}
+                      <code>{this.state.gitHubInfo.targetRepo.branch}</code>{' '}
+                      branch and will be overwritten
+                    </h4>
+                    <ul>
+                      {(
+                        this.state.gitHubConfirmationModal?.changeset
+                          ?.changed || []
+                      ).map(file => {
+                        const checked =
+                          this.state.snippetStorage?.overwriteSettings?.[
+                            file.path
+                          ] ?? true;
+
+                        return (
+                          <li>
+                            <input
+                              type="checkbox"
+                              id={file.path}
+                              key={file.path}
+                              checked={checked}
+                              onChange={event => {
+                                this.setOverwritePath({
+                                  path: file.path,
+                                  overwrite: !checked,
+                                });
+                              }}
+                            />{' '}
+                            <label for={file.path}>
+                              {' '}
+                              <code>{file.path}</code>
+                            </label>{' '}
+                            - {checked ? 'overwrite' : 'skip'}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </main>
+                  {(this.state.gitHubConfirmationModal?.changeset.new || [])
+                    .length > 0 ? (
+                    <aside class="sidebar-new">
+                      <h4>New files</h4>
+                      <ul>
+                        {(
+                          this.state.gitHubConfirmationModal?.changeset?.new ||
+                          []
+                        ).map(file => {
+                          return (
+                            <li style={{color: 'green'}}>
+                              <code>{file.path}</code>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </aside>
+                  ) : null}{' '}
+                  {(
+                    this.state.gitHubConfirmationModal?.changeset.unchanged ||
+                    []
+                  ).length > 0 ? (
+                    <aside class="sidebar-unchanged">
+                      <h4> Unchanged files</h4>
+                      <ul>
+                        {(
+                          this.state.gitHubConfirmationModal?.changeset
+                            ?.unchanged || []
+                        ).map(file => {
+                          return (
+                            <li style={{color: 'gray'}}>
+                              <code>{file.path}</code>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </aside>
+                  ) : null}
+                </div>
+              </section>
+              <footer>
+                <button
+                  onClick={() => {
+                    this.setState({
+                      gitHubConfirmationModal: null,
+                      gitHubPushResult: null,
+                    });
+                    this._pushChangesToGitHub(
+                      operationDataList,
+                      fragmentVariables,
+                      this.state.snippetStorage?.overwriteSettings,
+                    );
+                  }}>
+                  Confirm
+                </button>
+                <button
+                  onClick={() => {
+                    this.setState({
+                      gitHubConfirmationModal: null,
+                      gitHubPushResult: null,
+                    });
+                  }}>
+                  Cancel
+                </button>
+              </footer>
+            </div>
+          </Modal>
+        ) : null}
       </div>
     );
   }
@@ -1591,7 +2222,7 @@ export default function CodeExporterWrapper({
     <div
       className="docExplorerWrap"
       style={{
-        width: 440,
+        width: 1440,
         minWidth: 440,
         zIndex: 7,
       }}>
