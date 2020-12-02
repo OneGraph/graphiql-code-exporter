@@ -2,22 +2,17 @@ import React from 'react';
 
 const css = {
   modal: {
-    position: 'fixed',
-    top: '0',
+    position: 'absolute',
+    top: '56px',
     left: '0',
     width: '100%',
-    height: '100%',
     background: 'rgba(0, 0, 0, 0.6)',
     zIndex: '99',
   },
   modalMain: {
-    position: 'fixed',
+    position: 'absolute',
     background: 'white',
-    width: '80%',
-    height: 'auto',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%,-50%)',
+    width: '100%',
   },
   displayBlock: {display: 'block'},
   displayNone: {display: 'none'},

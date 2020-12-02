@@ -12,16 +12,17 @@
 }
 
 .flex-wrapper {
-  min-height: 100vh;
+  max-height: 60vh;
   background: #ccc;
   display: flex;
   flex-direction: column;
 }
 .flex-wrapper .header,
 .footer {
-  height: 50px;
+  height: unset;
   background: #666;
   color: #fff;
+  padding: 4px;
 }
 .flex-wrapper .content {
   display: flex;
@@ -39,7 +40,6 @@
   order: 1;
   background: #eee;
   padding: 6px;
-  max-height: 33%;
   overflow-y: scroll;
 }
 .flex-wrapper .sidebar-new {

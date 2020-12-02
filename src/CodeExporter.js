@@ -11,6 +11,7 @@ import {
   visit,
   visitWithTypeInfo,
   TypeInfo,
+  printSchema,
 } from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
@@ -38,10 +39,7 @@ function formatVariableName(name: string) {
 
   return (
     name.charAt(0).toUpperCase() +
-    name
-      .slice(1)
-      .replace(uppercasePattern, '_$&')
-      .toUpperCase()
+    name.slice(1).replace(uppercasePattern, '_$&').toUpperCase()
   );
 }
 
@@ -86,7 +84,7 @@ const gitHubIcon = (
   </svg>
 );
 
-const downArrow = props => (
+const downArrow = (props) => (
   <svg width="14" height="8" {...props}>
     <path fill="#666" d="M 5 1.5 L 14 1.5 L 9.5 7 z"></path>
   </svg>
@@ -163,7 +161,7 @@ export type Snippet = {
 
 type NamedPath = Array<string>;
 
-const snippetStorageName = snippet => {
+const snippetStorageName = (snippet) => {
   return `${snippet.language}:${snippet.name}`;
 };
 
@@ -195,7 +193,7 @@ const findVariableTypeFromAncestorPath = (
   const namePath = namedPathOfAncestors(ancestors);
 
   // $FlowFixMe: Optional chaining
-  const usageAst = ancestors.slice(-1)?.[0]?.find(argAst => {
+  const usageAst = ancestors.slice(-1)?.[0]?.find((argAst) => {
     return argAst.value?.name?.value === variable.name.value;
   });
 
@@ -225,7 +223,7 @@ const findVariableTypeFromAncestorPath = (
   };
 
   const argByName = (field, name) =>
-    field && field.args.find(arg => arg.name === name);
+    field && field.args.find((arg) => arg.name === name);
 
   const helper = (
     obj: GraphQLObjectType,
@@ -238,8 +236,6 @@ const findVariableTypeFromAncestorPath = (
         return {name: variable.name.value, type: arg.type};
       }
     }
-
-    window.getNamedType = getNamedType;
 
     const [next, ...rest] = path;
     if (!next) {
@@ -410,7 +406,7 @@ const findPaginationSites = (
 
   const hasArgByNameAndTypeName = (field, argName, typeName) => {
     return field.args.some(
-      arg => arg.name === argName && arg.type.name === typeName,
+      (arg) => arg.name === argName && arg.type.name === typeName,
     );
   };
 
@@ -446,7 +442,7 @@ const findPaginationSites = (
             const hasConnectionSelection =
               node.name?.value === 'edges' &&
               node.selectionSet?.selections?.some(
-                sel => sel.name?.value === 'node',
+                (sel) => sel.name?.value === 'node',
               );
 
             const hasPageInfoType = !!getNamedType(
@@ -546,17 +542,17 @@ export const extractNodeToConnectionFragment = ({
   };
 
   const hasFirstArgument = (node.arguments || []).some(
-    arg => arg.name.value === 'first',
+    (arg) => arg.name.value === 'first',
   );
   const hasAfterArgument = (node.arguments || []).some(
-    arg => arg.name.value === 'after',
+    (arg) => arg.name.value === 'after',
   );
 
   const namedType = schema.getType(typeConditionName);
 
   const namedTypeHasId = !!(namedType && namedType.getFields().id);
 
-  const args = node?.arguments?.map(arg => {
+  const args = node?.arguments?.map((arg) => {
     const variableName = canonicalArgumentNameMapping[arg.name.value];
 
     return !!variableName
@@ -579,9 +575,9 @@ export const extractNodeToConnectionFragment = ({
     args.push(connectionAfterArgument);
   }
 
-  const connectionKeyName = `${fragmentName}_${(node.alias &&
-    node.alias.value) ||
-    node.name.value}`;
+  const connectionKeyName = `${fragmentName}_${
+    (node.alias && node.alias.value) || node.name.value
+  }`;
 
   const tempFragmentDefinition = {
     ...baseFragmentDefinition,
@@ -658,10 +654,10 @@ export const extractNodeToConnectionFragment = ({
     .filter(Boolean);
 
   const hasCountArgumentDefinition = usedArgumentDefinition.some(
-    argDef => argDef.name === 'count',
+    (argDef) => argDef.name === 'count',
   );
   const hasCursorArgumentDefinition = usedArgumentDefinition.some(
-    argDef => argDef.name === 'cursor',
+    (argDef) => argDef.name === 'cursor',
   );
 
   const baseArgumentDefinitions = [
@@ -727,7 +723,7 @@ export const findUnusedOperationVariables = (
   operationDefinition: OperationDefinitionNode,
 ) => {
   const variableNames = (operationDefinition.variableDefinitions || []).map(
-    def => {
+    (def) => {
       return def.variable.name.value;
     },
   );
@@ -838,7 +834,7 @@ export const makeArgumentsDefinitionsDirective = (
 ) => {
   const astDirective = makeAstDirective({
     name: 'argumentDefinitions',
-    args: defs.map(def => {
+    args: defs.map((def) => {
       const defaultValueField = !!def.defaultValue
         ? [
             {
@@ -894,7 +890,7 @@ export const makeArgumentsDirective = (
 ) => {
   return makeAstDirective({
     name: 'arguments',
-    args: defs.map(def => {
+    args: defs.map((def) => {
       return {
         kind: 'Argument',
         name: {
@@ -928,7 +924,7 @@ export const findFragmentVariables = (
   visit(
     def,
     visitWithTypeInfo(typeInfo, {
-      Variable: function(node, key, parent, path, ancestors) {
+      Variable: function (node, key, parent, path, ancestors) {
         const usedVariables = findVariableTypeFromAncestorPath(
           schema,
           def,
@@ -940,7 +936,7 @@ export const findFragmentVariables = (
           // TODO: Don't filter boolean, fix findVariableTypeFromAncestorPath
           existingVariables
             .filter(Boolean)
-            .some(existingDef => existingDef.name === def.name.value);
+            .some((existingDef) => existingDef.name === def.name.value);
         fragmentVariables[def.name.value] = alreadyHasVariable
           ? existingVariables
           : [...existingVariables, usedVariables];
@@ -957,7 +953,7 @@ let findFragmentDependencies = (
   def: OperationDefinitionNode | FragmentDefinitionNode,
 ): Array<FragmentDefinitionNode> => {
   const fragmentByName = (name: string) => {
-    return operationDefinitions.find(def => def.name.value === name);
+    return operationDefinitions.find((def) => def.name.value === name);
   };
 
   const findReferencedFragments = (
@@ -966,7 +962,7 @@ let findFragmentDependencies = (
     const selections = selectionSet.selections;
 
     const namedFragments = selections
-      .map(selection => {
+      .map((selection) => {
         if (selection.kind === 'FragmentSpread') {
           const fragmentDef = fragmentByName(selection.name.value);
 
@@ -1006,7 +1002,7 @@ let collectFragmentVariables = (
   operationDefinitions: Array<FragmentDefinitionNode>,
 ): ShallowFragmentVariables => {
   const entries = operationDefinitions
-    .map(fragmentDefinition => {
+    .map((fragmentDefinition) => {
       let usedVariables = {};
 
       if (!!schema && fragmentDefinition.kind === 'FragmentDefinition') {
@@ -1027,19 +1023,19 @@ const computeDeepFragmentVariables = (
 ) => {
   const fragmentByName = (name: string) => {
     return operationDataList.find(
-      operationData => operationData.operationDefinition.name?.value === name,
+      (operationData) => operationData.operationDefinition.name?.value === name,
     );
   };
 
   const entries = operationDataList
-    .map(operationData => {
+    .map((operationData) => {
       const operation = operationData.operationDefinition;
       if (operation.kind === 'FragmentDefinition' && !!operation.name) {
         const localVariables =
           shallowFragmentVariables[operation.name.value] || [];
         const visitedFragments = new Set();
 
-        const helper = deps => {
+        const helper = (deps) => {
           return deps.reduce((acc, dep) => {
             const depName = dep.name.value;
             if (visitedFragments.has(depName)) {
@@ -1158,8 +1154,8 @@ export class ToolbarMenu extends Component<
       <a
         className="toolbar-menu toolbar-button"
         onClick={this.handleOpen}
-        onMouseDown={e => e.preventDefault()}
-        ref={node => {
+        onMouseDown={(e) => e.preventDefault()}
+        ref={(node) => {
           this._node = node;
         }}
         title={this.props.title}>
@@ -1231,7 +1227,7 @@ class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
   }
 
   render() {
-    return <div ref={ref => (this._node = ref)} />;
+    return <div ref={(ref) => (this._node = ref)} />;
   }
 }
 
@@ -1316,7 +1312,7 @@ class CodeExporter extends Component<Props, State> {
 
   setLanguage = (language: string) => {
     const snippet = this.props.snippets.find(
-      snippet => snippet.language === language,
+      (snippet) => snippet.language === language,
     );
 
     if (snippet) {
@@ -1385,7 +1381,7 @@ class CodeExporter extends Component<Props, State> {
         fragmentVariables,
       );
 
-      const files = generateFiles(generateOptions);
+      const files = await generateFiles(generateOptions);
 
       return files;
     } catch (e) {
@@ -1400,7 +1396,10 @@ class CodeExporter extends Component<Props, State> {
     this.setState({codesandboxResult: {type: 'loading'}});
 
     try {
-      const files = this._generateFiles(operationDataList, fragmentVariables);
+      const files = await this._generateFiles(
+        operationDataList,
+        fragmentVariables,
+      );
 
       if (!files) {
         console.warn('No files generated');
@@ -1466,6 +1465,7 @@ class CodeExporter extends Component<Props, State> {
             typeof details.content === 'object'
               ? JSON.stringify(details.content, null, 2)
               : details.content;
+
           return {
             path: path,
             mode: '100644',
@@ -1493,7 +1493,7 @@ class CodeExporter extends Component<Props, State> {
             },
           });
         } else if (!!pushResults.confirmationNeeded) {
-          this.setState(oldState => {
+          this.setState((oldState) => {
             return {
               gitHubPushResult: {
                 type: 'error',
@@ -1578,7 +1578,7 @@ class CodeExporter extends Component<Props, State> {
       JSON.stringify(newSnippetStorage),
     );
 
-    this.setState(oldState => {
+    this.setState((oldState) => {
       return {
         ...oldState,
         gitHubInfo: {
@@ -1601,12 +1601,11 @@ class CodeExporter extends Component<Props, State> {
 
     this.setState({snippetStorage: snippetStorage});
 
-    OG.fetchFindMeOnGitHub().then(result => {
+    OG.fetchFindMeOnGitHub().then((result) => {
       const rawGitHubInfo = result.data?.me?.github;
       if (!!rawGitHubInfo) {
-        window.rawGitHubInfo = rawGitHubInfo;
         const availableRepositories = rawGitHubInfo.repositories.edges.map(
-          edge => {
+          (edge) => {
             const [owner, name] = edge.node.nameWithOwner.split('/');
             return {
               owner: owner,
@@ -1624,7 +1623,7 @@ class CodeExporter extends Component<Props, State> {
           targetRepo: defaultRepo || availableRepositories[0],
         };
 
-        this.setState(oldState => ({
+        this.setState((oldState) => ({
           ...oldState,
           gitHubInfo: {...oldState.gitHubInfo, ...gitHubInfo},
         }));
@@ -1666,7 +1665,7 @@ class CodeExporter extends Component<Props, State> {
     const supportsCodesandbox = snippet.generateCodesandboxFiles;
 
     const languages = [
-      ...new Set(snippets.map(snippet => snippet.language)),
+      ...new Set(snippets.map((snippet) => snippet.language)),
     ].sort((a, b) => a.localeCompare(b));
 
     return (
@@ -1686,8 +1685,8 @@ class CodeExporter extends Component<Props, State> {
             </ToolbarMenu>
             <ToolbarMenu label={name} title="Mode">
               {snippets
-                .filter(snippet => snippet.language === language)
-                .map(snippet => (
+                .filter((snippet) => snippet.language === language)
+                .map((snippet) => (
                   <li
                     key={snippet.name}
                     onClick={() => this.setSnippet(snippet)}>
@@ -1707,7 +1706,7 @@ class CodeExporter extends Component<Props, State> {
                 }}>
                 Options
               </div>
-              {snippet.options.map(option => (
+              {snippet.options.map((option) => (
                 <div key={option.id}>
                   <input
                     id={option.id}
@@ -1736,7 +1735,8 @@ class CodeExporter extends Component<Props, State> {
           {supportsCodesandbox ? (
             <div style={{padding: '0 7px 8px'}}>
               <div style={{display: 'inline-blick'}}>
-                {!!this.state.gitHubInfo ? (
+                {(this.state.gitHubInfo?.availableRepositories || []).length >
+                0 ? (
                   <ToolbarMenu
                     label={`Sync ${
                       this.state.gitHubInfo?.targetRepo
@@ -1753,6 +1753,8 @@ class CodeExporter extends Component<Props, State> {
                           fragmentVariables,
                           {},
                         );
+
+                        return true;
                       }}>
                       {gitPushIcon} Push changes
                     </li>
@@ -1761,7 +1763,7 @@ class CodeExporter extends Component<Props, State> {
                         const repoName = prompt(
                           'Name of new GitHub repository',
                         );
-                        if (!repoName.trim()) {
+                        if (!repoName?.trim()) {
                           return;
                         }
 
@@ -1779,20 +1781,11 @@ class CodeExporter extends Component<Props, State> {
                           return;
                         }
 
-                        const defaultRepo = {
-                          name: repo?.name,
-                          owner: repo?.owner?.login,
-                          branch: 'main',
-                        };
-
-                        this.setState(oldState => ({
-                          ...oldState,
-                          gitHubInfo: {
-                            ...oldState.gitHubInfo,
-                            searchOpen: false,
-                            targetRepo: defaultRepo,
-                          },
-                        }));
+                        this.setTargetRepo(
+                          repo?.owner?.login,
+                          repo?.name,
+                          'main',
+                        );
                       }}>
                       {gitNewRepoIcon} New repository
                     </li>
@@ -1805,10 +1798,10 @@ class CodeExporter extends Component<Props, State> {
                             }
                           : null
                       }
-                      onClick={event => {
+                      onClick={(event) => {
                         event.stopPropagation();
                         event.nativeEvent.stopImmediatePropagation();
-                        this.setState(oldState => {
+                        this.setState((oldState) => {
                           return {
                             ...oldState,
                             gitHubInfo: {
@@ -1818,7 +1811,7 @@ class CodeExporter extends Component<Props, State> {
                           };
                         });
                       }}
-                      onMouseDown={event => {
+                      onMouseDown={(event) => {
                         event.stopPropagation();
                         event.nativeEvent.stopImmediatePropagation();
                         return false;
@@ -1841,23 +1834,23 @@ class CodeExporter extends Component<Props, State> {
                             margin: '2px',
                             paddingLeft: '6px',
                           }}
-                          onClick={event => {
+                          onClick={(event) => {
                             event.stopPropagation();
                             event.nativeEvent.stopImmediatePropagation();
                           }}
-                          onMouseDown={event => {
+                          onMouseDown={(event) => {
                             event.stopPropagation();
                             event.nativeEvent.stopImmediatePropagation();
                             return false;
                           }}
-                          onChange={event => {
+                          onChange={(event) => {
                             const value = event.target.value;
                             let repoSearch = value;
                             if (value.trim() === '') {
                               repoSearch = null;
                             }
 
-                            this.setState(oldState => {
+                            this.setState((oldState) => {
                               return {
                                 ...oldState,
                                 gitHubInfo: {
@@ -1891,9 +1884,10 @@ class CodeExporter extends Component<Props, State> {
                                 onClick={() => {
                                   const branchName = prompt(
                                     'Which branch should we push to?',
+                                    'main',
                                   );
 
-                                  if (!branchName.trim()) {
+                                  if (!branchName?.trim()) {
                                     return;
                                   }
 
@@ -1997,30 +1991,30 @@ class CodeExporter extends Component<Props, State> {
             borderTop: '1px solid rgb(220, 220, 220)',
             fontSize: 12,
           }}>
-          {codeSnippet ? (
-            <CodeDisplay
-              code={codeSnippet}
-              mode={snippet.codeMirrorMode}
-              theme={this.props.codeMirrorTheme}
-            />
-          ) : (
-            <div>
-              The query is invalid.
-              <br />
-              The generated code will appear here once the errors in the query
-              editor are resolved.
-            </div>
-          )}
+          {!this.state.gitHubConfirmationModal ? (
+            codeSnippet ? (
+              <CodeDisplay
+                code={codeSnippet}
+                mode={snippet.codeMirrorMode}
+                theme={this.props.codeMirrorTheme}
+              />
+            ) : (
+              <div>
+                The query is invalid.
+                <br />
+                The generated code will appear here once the errors in the query
+                editor are resolved.
+              </div>
+            )
+          ) : null}
         </div>
         {!!this.state.gitHubConfirmationModal ? (
           <Modal show={!!this.state.gitHubConfirmationModal}>
-            <div class="flex-wrapper">
-              <header class="header">
-                <h1>File change summary</h1>
-              </header>
-              <section class="content">
-                <div class="columns">
-                  <main class="changed">
+            <div className="flex-wrapper">
+              <header className="header">File change summary</header>
+              <section className="content">
+                <div className="columns">
+                  <main className="changed">
                     <h4>
                       These files have changed in{' '}
                       <code>
@@ -2031,78 +2025,86 @@ class CodeExporter extends Component<Props, State> {
                       <code>{this.state.gitHubInfo.targetRepo.branch}</code>{' '}
                       branch and will be overwritten
                     </h4>
-                    <ul>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'max-content max-content',
+                        gridGap: '5px',
+                      }}>
                       {(
                         this.state.gitHubConfirmationModal?.changeset
                           ?.changed || []
-                      ).map(file => {
+                      ).map((file) => {
                         const checked =
                           this.state.snippetStorage?.overwriteSettings?.[
                             file.path
                           ] ?? true;
 
                         return (
-                          <li>
-                            <input
-                              type="checkbox"
-                              id={file.path}
-                              key={file.path}
-                              checked={checked}
-                              onChange={event => {
-                                this.setOverwritePath({
-                                  path: file.path,
-                                  overwrite: !checked,
-                                });
-                              }}
-                            />{' '}
-                            <label for={file.path}>
-                              {' '}
-                              <code>{file.path}</code>
-                            </label>{' '}
-                            - {checked ? 'overwrite' : 'skip'}
-                          </li>
+                          <>
+                            <label htmlFor={file.path}>
+                              <input
+                                type="checkbox"
+                                id={file.path}
+                                key={file.path}
+                                checked={checked}
+                                onChange={(event) => {
+                                  this.setOverwritePath({
+                                    path: file.path,
+                                    overwrite: !checked,
+                                  });
+                                }}
+                              />{' '}
+                              {file.path}
+                            </label>
+                            <span> - {checked ? 'overwrite' : 'skip'}</span>
+                          </>
                         );
                       })}
-                    </ul>
+                      {(this.state.gitHubConfirmationModal?.changeset.new || [])
+                        .length > 0 ? (
+                        <>
+                          <h4>New files</h4>
+                          <span />
+                          {(
+                            this.state.gitHubConfirmationModal?.changeset
+                              ?.new || []
+                          ).map((file) => {
+                            return (
+                              <>
+                                <span key={file.path} style={{color: 'green'}}>
+                                  <span>{file.path}</span>
+                                </span>
+                                <span></span>
+                              </>
+                            );
+                          })}
+                        </>
+                      ) : null}
+                      {(
+                        this.state.gitHubConfirmationModal?.changeset
+                          .unchanged || []
+                      ).length > 0 ? (
+                        <>
+                          <h4> Unchanged files</h4>
+                          <span></span>
+                          {(
+                            this.state.gitHubConfirmationModal?.changeset
+                              ?.unchanged || []
+                          ).map((file) => {
+                            return (
+                              <>
+                                <span key={file.path} style={{color: 'gray'}}>
+                                  <span>{file.path}</span>
+                                </span>
+                                <span></span>
+                              </>
+                            );
+                          })}
+                        </>
+                      ) : null}
+                    </div>
                   </main>
-                  {(this.state.gitHubConfirmationModal?.changeset.new || [])
-                    .length > 0 ? (
-                    <aside class="sidebar-new">
-                      <h4>New files</h4>
-                      <ul>
-                        {(
-                          this.state.gitHubConfirmationModal?.changeset?.new ||
-                          []
-                        ).map(file => {
-                          return (
-                            <li style={{color: 'green'}}>
-                              <code>{file.path}</code>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </aside>
-                  ) : null}{' '}
-                  {(
-                    this.state.gitHubConfirmationModal?.changeset.unchanged ||
-                    []
-                  ).length > 0 ? (
-                    <aside class="sidebar-unchanged">
-                      <h4> Unchanged files</h4>
-                      <ul>
-                        {(
-                          this.state.gitHubConfirmationModal?.changeset
-                            ?.unchanged || []
-                        ).map(file => {
-                          return (
-                            <li style={{color: 'gray'}}>
-                              <code>{file.path}</code>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </aside>
-                  ) : null}
                 </div>
               </section>
               <footer>

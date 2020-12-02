@@ -3,10 +3,8 @@ import sha1 from 'js-sha1';
 
 const encoder = new TextEncoder();
 
-const computeGitHash = source =>
+const computeGitHash = (source) =>
   sha1('blob ' + encoder.encode(source).length + '\0' + source);
-
-window.computeGitHash = computeGitHash;
 
 // This setup is only needed once per application
 async function fetchOneGraph(operationsDoc, operationName, variables) {
@@ -221,16 +219,12 @@ export function executeCreateTree(owner, name, treeJson) {
   });
 }
 
-window.executeCreateTree = executeCreateTree;
-
 export function fetchDefaultBranchRef(owner, name) {
   return fetchOneGraph(operationsDoc, 'DefaultBranchRef', {
     owner: owner,
     name: name,
   });
 }
-
-window.fetchDefaultBranchRef = fetchDefaultBranchRef;
 
 export function fetchFilesOnRef(owner, name, fullyQualifiedRefName) {
   return fetchOneGraph(operationsDoc, 'FilesOnRef', {
@@ -240,15 +234,11 @@ export function fetchFilesOnRef(owner, name, fullyQualifiedRefName) {
   });
 }
 
-window.fetchDefaultBranchRef = fetchDefaultBranchRef;
-
 export function executeCreateRepo(name: string) {
   return fetchOneGraph(operationsDoc, 'CreateRepo', {
     repoJson: {name: name, auto_init: true},
   });
 }
-
-window.executeCreateRepo = executeCreateRepo;
 
 export function executeCreateCommit(owner, name, commitJson) {
   const path = `/repos/${owner}/${name}/git/commits`;
@@ -257,8 +247,6 @@ export function executeCreateCommit(owner, name, commitJson) {
     commitJson: commitJson,
   });
 }
-
-window.executeCreateCommit = executeCreateCommit;
 
 export function executeUpdateRef(refId, sha) {
   return fetchOneGraph(operationsDoc, 'UpdateRef', {refId, sha});
@@ -274,7 +262,7 @@ type TreeFiles = {
   |},
 };
 
-export const pushFilesToBranch = async function({
+export const pushFilesToBranch = async function ({
   owner,
   name,
   message,
@@ -308,7 +296,6 @@ export const pushFilesToBranch = async function({
     return acc;
   }, {});
 
-  window.fileHashes = fileHashes;
   const result = await fetchDefaultBranchRef(owner, name);
   const repositoryId = result?.data?.gitHub?.repository?.id;
   const defaultBranchRef = result?.data?.gitHub?.repository?.defaultBranchRef;
@@ -319,7 +306,6 @@ export const pushFilesToBranch = async function({
   let headRefNodeId = defaultBranchRef?.id;
   let headRefCommitSha = defaultBranchRef?.target?.oid;
   let headRefTreeSha = defaultBranchRef?.target?.tree?.oid;
-  // eslint-disable-next-line
   let headRefTreeNodeId = defaultBranchRef?.target?.tree?.id;
 
   let existingFiles =
@@ -337,7 +323,6 @@ export const pushFilesToBranch = async function({
       fullyQualifiedRefName,
     );
     let branchRef = filesOnRefResult?.data?.gitHub?.repository?.ref;
-    // eslint-disable-next-line
     let branchRefName = branchRef?.name;
 
     if (!branchRef) {
@@ -364,14 +349,14 @@ export const pushFilesToBranch = async function({
     headRefTreeNodeId = branchRef?.target?.tree?.id;
   }
 
-  const findExistingFileByPath = path => {
+  const findExistingFileByPath = (path) => {
     const parts = path.split('/');
     let candidates = existingFiles;
 
-    const helper = parts => {
+    const helper = (parts) => {
       const next = parts[0];
       const remainingParts = parts.slice(1);
-      const nextFile = candidates.find(gitFile => gitFile.name === next);
+      const nextFile = candidates.find((gitFile) => gitFile.name === next);
 
       if (!nextFile) return null;
 
@@ -438,9 +423,6 @@ export const pushFilesToBranch = async function({
     tree: treeFiles,
   };
 
-  window.changeset = changeset;
-  //   return treeJson;
-
   if (!headRefTreeSha) return {error: 'Failed to find sha of head ref tree'};
 
   const treeResults = await executeCreateTree(owner, name, treeJson);
@@ -479,139 +461,3 @@ export const pushFilesToBranch = async function({
     updateRefResult,
   };
 };
-
-window.pushFilesToBranch = pushFilesToBranch;
-
-/**
-1. Check if repo exists
-2. If not, create via rest with auto_init:true
-3. Get the defaultRef head
-4. Get the head commit, store sha (oid)
-5. Create a tree with the file
-6. Create a commit with the tree
-7. Point the default head ref to commit
-
-
-
-*/
-
-/**
-
-# 1
-query DefaultBranchRef(
-  $owner: String!
-  $name: String!
-) {
-  gitHub {
-    repository(name: $name, owner: $owner) {
-      defaultBranchRef {
-        id
-        name
-        target {
-          id
-          oid
-          ... on GitHubCommit {
-            tree {
-              id
-              oid
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-# 2
-mutation RestCreateRepo($repoJson: JSON!) {
-  gitHub {
-    makeRestCall {
-      post(
-        path: "/user/repos"
-        jsonBody: $repoJson
-        contentType: "application/json"
-        accept: "application/json"
-      ) {
-        response {
-          statusCode
-          headers
-        }
-        jsonBody
-      }
-    }
-  }
-}
-
-# 3 (same as #1)
-# 4 (same as #1)
-
-# 5
-mutation CreateTree($treeJson: JSON!) {
-  gitHub {
-    makeRestCall {
-      post(
-        path: "/repos/sgrove/made-from-rest/git/trees"
-        jsonBody: $treeJson
-        contentType: "application/json"
-        accept: "application/json"
-      ) {
-        response {
-          statusCode
-          headers
-        }
-        jsonBody
-      }
-    }
-  }
-}
-{"treeJson": {
-  "baseTree":"ffd168b9423afc5e9fdf519297c5bb0688ac6c31",
-  "tree": [
-    {
-      "type": "commit",
-      "path": "second-file",
-      "mode": "100644",
-      "content": "Got some content here"
-    }
-  ]
-}}
-
-# 6
-mutation CreateCommit($commitJson: JSON = "") {
-  gitHub {
-    makeRestCall {
-      post(
-        path: "/repos/sgrove/made-from-rest/git/commits"
-        jsonBody: $commitJson
-      ) {
-        response {
-          statusCode
-        }
-        jsonBody
-      }
-    }
-  }
-}
-
-#7
-mutation UpdateRef {
-  gitHub {
-    updateRef(
-      input: {
-        refId: "MDM6UmVmMzE0NjU3NTY2OnJlZnMvaGVhZHMvbWFpbg=="
-        oid: "db478fb4e5ac88341c0498d8d257b77c304be3da"
-      }
-    ) {
-      clientMutationId
-      ref {
-        name
-        id
-        target {
-          oid
-          id
-        }
-      }
-    }
-  }
-}
- */
