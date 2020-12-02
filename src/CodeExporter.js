@@ -1,29 +1,45 @@
 // @flow
 import React, {Component} from 'react';
 import copy from 'copy-to-clipboard';
-import {parse, print} from 'graphql';
+import {
+  BREAK,
+  getNamedType,
+  GraphQLInputObjectType,
+  GraphQLObjectType,
+  parse,
+  print,
+  visit,
+  visitWithTypeInfo,
+  TypeInfo,
+  printSchema,
+} from 'graphql';
 // $FlowFixMe: can't find module
 import CodeMirror from 'codemirror';
 import toposort from './toposort.js';
+import Modal from './Modal';
+
+import * as OG from './OneGraphOperations';
 
 import type {
   GraphQLSchema,
+  FieldNode,
   FragmentDefinitionNode,
   OperationDefinitionNode,
   VariableDefinitionNode,
+  VariableNode,
+  NameNode,
   OperationTypeNode,
   SelectionSetNode,
 } from 'graphql';
+
+import './CodeExporter.css';
 
 function formatVariableName(name: string) {
   var uppercasePattern = /[A-Z]/g;
 
   return (
     name.charAt(0).toUpperCase() +
-    name
-      .slice(1)
-      .replace(uppercasePattern, '_$&')
-      .toUpperCase()
+    name.slice(1).replace(uppercasePattern, '_$&').toUpperCase()
   );
 }
 
@@ -38,6 +54,7 @@ const copyIcon = (
   </svg>
 );
 
+// eslint-disable-next-line
 const codesandboxIcon = (
   <svg
     width="20"
@@ -55,6 +72,49 @@ const codesandboxIcon = (
   </svg>
 );
 
+// eslint-disable-next-line
+const gitHubIcon = (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg">
+    <title>{'GitHub icon'}</title>
+    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+  </svg>
+);
+
+const downArrow = (props) => (
+  <svg width="14" height="8" {...props}>
+    <path fill="#666" d="M 5 1.5 L 14 1.5 L 9.5 7 z"></path>
+  </svg>
+);
+
+const gitPushIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 800 800">
+    <path d="M128 64C57.344 64 0 121.344 0 192c0 47.219 25.906 88.062 64 110.281V721.75C25.906 743.938 0 784.75 0 832c0 70.625 57.344 128 128 128s128-57.375 128-128c0-47.25-25.844-88.062-64-110.25V302.281c38.156-22.219 64-63.062 64-110.281 0-70.656-57.344-128-128-128zm0 832c-35.312 0-64-28.625-64-64 0-35.312 28.688-64 64-64 35.406 0 64 28.688 64 64 0 35.375-28.594 64-64 64zm0-640c-35.312 0-64-28.594-64-64s28.688-64 64-64c35.406 0 64 28.594 64 64s-28.594 64-64 64zm576 465.75V320c0-192.5-192-192-192-192h-64V0L256 192l192 192V256h64c56.438 0 64 64 64 64v401.75c-38.125 22.188-64 62.938-64 110.25 0 70.625 57.375 128 128 128s128-57.375 128-128c0-47.25-25.875-88.062-64-110.25zM640 896c-35.312 0-64-28.625-64-64 0-35.312 28.688-64 64-64 35.375 0 64 28.688 64 64 0 35.375-28.625 64-64 64z"></path>
+  </svg>
+);
+
+const gitNewRepoIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 1024 1024">
+    <path d="M512 320H384v128H256v128h128v128h128V576h128V448H512V320zM832 64H64C0 64 0 128 0 128v768s0 64 64 64h768c64 0 64-64 64-64V128s0-64-64-64zm-64 736c0 32-32 32-32 32H160s-32 0-32-32V224c0-32 32-32 32-32h576s32 0 32 32v576z"></path>
+  </svg>
+);
+
+type ShallowFragmentVariables = {
+  [string]: {
+    variables: ?Array<{name: string, type: string}>,
+  },
+};
 export type Variables = {[key: string]: ?mixed};
 
 // TODO: Need clearer separation between option defs and option values
@@ -79,6 +139,7 @@ export type GenerateOptions = {
   context: Object,
   operationDataList: Array<OperationData>,
   options: OptionValues,
+  schema: ?GraphQLSchema,
 };
 
 export type CodesandboxFile = {
@@ -98,12 +159,161 @@ export type Snippet = {
   generateCodesandboxFiles?: ?(options: GenerateOptions) => CodesandboxFiles,
 };
 
+type NamedPath = Array<string>;
+
+const snippetStorageName = (snippet) => {
+  return `${snippet.language}:${snippet.name}`;
+};
+
+export const namedPathOfAncestors = (
+  ancestors: ?$ReadOnlyArray<Array<any>>,
+): namedPath =>
+  (ancestors || []).reduce((acc, next) => {
+    if (Array.isArray(next)) {
+      return acc;
+    }
+    switch (next.kind) {
+      case 'Field':
+        return [...acc, next.name.value];
+      case 'InlineFragment':
+        return [...acc, `$inlineFragment.${next.typeCondition.name.value}`];
+      case 'Argument':
+        return [...acc, `$arg.${next.name.value}`];
+      default:
+        return acc;
+    }
+  }, []);
+
+const findVariableTypeFromAncestorPath = (
+  schema: GraphQLSchema,
+  definitionNode: FragmentDefinitionNode,
+  variable: VariableNode,
+  ancestors: ?$ReadOnlyArray<Array<any>>,
+): ?{name: string, type: any} => {
+  const namePath = namedPathOfAncestors(ancestors);
+
+  // $FlowFixMe: Optional chaining
+  const usageAst = ancestors.slice(-1)?.[0]?.find((argAst) => {
+    return argAst.value?.name?.value === variable.name.value;
+  });
+
+  if (!usageAst) {
+    return;
+  }
+
+  const argObjectValueHelper = (
+    inputObj: GraphQLInputObjectType,
+    path: Array<string>,
+    parentField: ?any,
+  ): ?{name: string, type: any} => {
+    if (path.length === 0) {
+      const finalInputField = inputObj.getFields()[usageAst.name.value];
+      return {
+        name: variable.name.value,
+        type: finalInputField.type,
+      };
+    }
+
+    const [next, ...rest] = path;
+    const field = inputObj.getFields()[next];
+    const namedType = getNamedType(field.type);
+    if (!!namedType && namedType instanceof GraphQLInputObjectType) {
+      return argObjectValueHelper(namedType, rest, field);
+    }
+  };
+
+  const argByName = (field, name) =>
+    field && field.args.find((arg) => arg.name === name);
+
+  const helper = (
+    obj: GraphQLObjectType,
+    path: Array<string>,
+    parentField: ?any,
+  ): ?{name: string, type: any} => {
+    if ((path || []).length === 0) {
+      const arg = argByName(parentField, usageAst.name.value);
+      if (!!arg) {
+        return {name: variable.name.value, type: arg.type};
+      }
+    }
+
+    const [next, ...rest] = path;
+    if (!next) {
+      console.warn(
+        'Next is null before finding target (this may be normal) ',
+        variable,
+        namePath,
+        definitionNode,
+      );
+      return;
+    }
+    const nextIsArg = next.startsWith('$arg.');
+    const nextIsInlineFragment = next.startsWith('$inlineFragment.');
+
+    if (nextIsArg) {
+      const argName = next.replace('$arg.', '');
+      const arg = argByName(parentField, argName);
+      if (!arg) {
+        console.warn('Failed to find arg: ', argName);
+        return;
+      }
+      const inputObj = getNamedType(arg.type);
+
+      if (!!inputObj) {
+        return argObjectValueHelper(inputObj, rest);
+      }
+    } else if (nextIsInlineFragment) {
+      const typeName = next.replace('$inlineFragment.', '');
+      const type = schema.getType(typeName);
+      const namedType = type && getNamedType(type);
+      const field = namedType.getFields()[next];
+
+      return helper(namedType, rest, field);
+    } else {
+      const field = obj.getFields()[next];
+      const namedType = getNamedType(field.type);
+
+      // TODO: Clean up this mess
+      if ((rest || []).length === 0) {
+        // Dummy use of `obj` since I botched the recursion base case
+        return helper(obj, rest, field);
+      } else {
+        if (!!namedType && !!namedType.getFields) {
+          // $FlowFixMe: Not sure how to type a "GraphQL object that has getFields"
+          return helper(namedType, rest, field);
+        }
+      }
+    }
+  };
+
+  const isDefinitionNode = [
+    'OperationDefinition',
+    'FragmentDefinition',
+  ].includes(definitionNode.kind);
+
+  if (!isDefinitionNode) {
+    return;
+  }
+
+  const rootType =
+    definitionNode.kind === 'FragmentDefinition'
+      ? schema.getType(definitionNode.typeCondition.name.value)
+      : null;
+
+  if (!!rootType && !!rootType.getFields) {
+    // $FlowFixMe: Not sure how to type a "GraphQL object that has getFields"
+    return helper(rootType, namePath);
+  }
+};
+
 export const computeOperationDataList = ({
   query,
   variables,
+  schema,
 }: {
   query: string,
   variables: Variables,
+  schema: ?GraphQLSchema,
 }) => {
   const operationDefinitions = getOperationNodes(query);
 
@@ -128,20 +338,40 @@ export const computeOperationDataList = ({
       variables: getUsedVariables(variables, operationDefinition),
       operationDefinition,
       fragmentDependencies: findFragmentDependencies(
+        schema,
         fragmentDefinitions,
         operationDefinition,
       ),
+      paginationSites:
+        schema && findPaginationSites(schema, operationDefinition),
     }),
   );
 
   const operationDataList = toposort(rawOperationDataList);
 
-  return {
+  let fragmentVariables;
+  if (!!schema) {
+    const shallowFragmentVariables = collectFragmentVariables(
+      schema,
+      fragmentDefinitions,
+    );
+
+    fragmentVariables = computeDeepFragmentVariables(
+      schema,
+      operationDataList,
+      shallowFragmentVariables,
+    );
+  }
+
+  const result = {
     operationDefinitions: operationDefinitions,
     fragmentDefinitions: fragmentDefinitions,
     rawOperationDataList: rawOperationDataList,
     operationDataList: operationDataList,
+    fragmentVariables: fragmentVariables,
   };
+
+  return result;
 };
 
 async function createCodesandbox(
@@ -166,12 +396,564 @@ async function createCodesandbox(
   }
 }
 
+const findPaginationSites = (
+  schema: GraphQLSchema,
+  operationDefinition: OperationDefinitionNode | FragmentDefinitionNode,
+) => {
+  var typeInfo = new TypeInfo(schema);
+  var paginationSites = [];
+  let previousNode;
+
+  const hasArgByNameAndTypeName = (field, argName, typeName) => {
+    return field.args.some(
+      (arg) => arg.name === argName && arg.type.name === typeName,
+    );
+  };
+
+  visit(
+    operationDefinition,
+    visitWithTypeInfo(typeInfo, {
+      Field: {
+        enter: (node, key, parent, path, ancestors) => {
+          const namedType = getNamedType(typeInfo.getType());
+          const typeName = namedType?.name;
+          const parentType = typeInfo.getParentType();
+          const parentNamedType = parentType && getNamedType(parentType);
+          const parentTypeName = parentNamedType?.name;
+
+          const isConnectionCandidate =
+            !!parentTypeName?.endsWith('Connection') &&
+            !!typeName.endsWith('Edge') &&
+            !!previousNode;
+
+          if (typeName.endsWith('Connection')) {
+            previousNode = {
+              node,
+              namedType: getNamedType(typeInfo.getType()),
+              parent: parentNamedType,
+              field: parentNamedType?.getFields()?.[node.name.value],
+            };
+          } else if (isConnectionCandidate) {
+            const parentField = previousNode?.field;
+            const parentHasConnectionArgs =
+              hasArgByNameAndTypeName(parentField, 'first', 'Int') &&
+              hasArgByNameAndTypeName(parentField, 'after', 'String');
+
+            const hasConnectionSelection =
+              node.name?.value === 'edges' &&
+              node.selectionSet?.selections?.some(
+                (sel) => sel.name?.value === 'node',
+              );
+
+            const hasPageInfoType = !!getNamedType(
+              parentNamedType?.getFields()?.['pageInfo']?.type,
+            )?.name?.endsWith('PageInfo');
+
+            const conformsToConnectionSpec =
+              parentHasConnectionArgs &&
+              hasConnectionSelection &&
+              hasPageInfoType;
+
+            if (conformsToConnectionSpec) {
+              paginationSites.push([node, [...ancestors]]);
+            }
+
+            previousNode = null;
+          } else {
+            previousNode = null;
+          }
+        },
+      },
+    }),
+  );
+
+  return paginationSites;
+};
+
+const baseFragmentDefinition = {
+  kind: 'FragmentDefinition',
+  typeCondition: {
+    kind: 'NamedType',
+    name: {
+      kind: 'Name',
+      value: 'TypeName',
+    },
+  },
+  selectionSet: {
+    kind: 'SelectionSet',
+    selections: [],
+  },
+  name: {
+    kind: 'Name',
+    value: 'PlaceholderFragment',
+  },
+  directives: [],
+};
+
+export const extractNodeToConnectionFragment = ({
+  schema,
+  node,
+  moduleName,
+  propName,
+  typeConditionName,
+}: {
+  schema: GraphQLSchema,
+  node: FieldNode,
+  moduleName: string,
+  propName: string,
+  typeConditionName: string,
+}) => {
+  const fragmentName = `${moduleName}_${propName}`;
+
+  const canonicalArgumentNameMapping = {
+    first: 'count',
+    after: 'cursor',
+    last: 'last',
+    before: 'cursor',
+  };
+  const connectionFirstArgument = {
+    kind: 'Argument',
+    name: {
+      kind: 'Name',
+      value: 'first',
+    },
+    value: {
+      kind: 'Variable',
+      name: {
+        kind: 'Name',
+        value: 'count',
+      },
+    },
+  };
+
+  const connectionAfterArgument = {
+    kind: 'Argument',
+    name: {
+      kind: 'Name',
+      value: 'after',
+    },
+    value: {
+      kind: 'Variable',
+      name: {
+        kind: 'Name',
+        value: 'cursor',
+      },
+    },
+  };
+
+  const hasFirstArgument = (node.arguments || []).some(
+    (arg) => arg.name.value === 'first',
+  );
+  const hasAfterArgument = (node.arguments || []).some(
+    (arg) => arg.name.value === 'after',
+  );
+
+  const namedType = schema.getType(typeConditionName);
+
+  const namedTypeHasId = !!(namedType && namedType.getFields().id);
+
+  const args = node?.arguments?.map((arg) => {
+    const variableName = canonicalArgumentNameMapping[arg.name.value];
+
+    return !!variableName
+      ? {
+          ...arg,
+          value: {
+            ...arg.value,
+            kind: 'Variable',
+            name: {kind: 'Name', value: variableName},
+          },
+        }
+      : arg;
+  });
+
+  if (!hasFirstArgument) {
+    args.push(connectionFirstArgument);
+  }
+
+  if (!hasAfterArgument) {
+    args.push(connectionAfterArgument);
+  }
+
+  const connectionKeyName = `${fragmentName}_${
+    (node.alias && node.alias.value) || node.name.value
+  }`;
+
+  const tempFragmentDefinition = {
+    ...baseFragmentDefinition,
+    name: {...baseFragmentDefinition.name, value: fragmentName},
+    typeCondition: {
+      ...baseFragmentDefinition.typeCondition,
+      name: {
+        ...baseFragmentDefinition.typeCondition.name,
+        value: typeConditionName,
+      },
+    },
+    directives: [],
+    selectionSet: {
+      ...baseFragmentDefinition.selectionSet,
+      selections: [
+        // Add id field automatically for store-based connections like Relay
+        ...(namedTypeHasId
+          ? [
+              {
+                kind: 'Field',
+                name: {
+                  kind: 'Name',
+                  value: 'id',
+                },
+                directives: [],
+              },
+            ]
+          : []),
+        {
+          ...node,
+          directives: [
+            {
+              kind: 'Directive',
+              name: {
+                kind: 'Name',
+                value: 'connection',
+              },
+              arguments: [
+                {
+                  kind: 'Argument',
+                  name: {kind: 'Name', value: 'key'},
+                  value: {
+                    kind: 'StringValue',
+                    value: connectionKeyName,
+                    block: false,
+                  },
+                },
+              ],
+            },
+          ],
+          arguments: [...(args || [])],
+        },
+      ],
+    },
+  };
+
+  const allFragmentVariables = findFragmentVariables(
+    schema,
+    tempFragmentDefinition,
+  );
+
+  const fragmentVariables =
+    allFragmentVariables[tempFragmentDefinition.name.value] || [];
+
+  const usedArgumentDefinition = fragmentVariables
+    .filter(Boolean)
+    .map(({name, type}) => {
+      if (!['count', 'first', 'after', 'cursor'].includes(name)) {
+        return {name: name, type: type.toString()};
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  const hasCountArgumentDefinition = usedArgumentDefinition.some(
+    (argDef) => argDef.name === 'count',
+  );
+  const hasCursorArgumentDefinition = usedArgumentDefinition.some(
+    (argDef) => argDef.name === 'cursor',
+  );
+
+  const baseArgumentDefinitions = [
+    hasCountArgumentDefinition
+      ? null
+      : {
+          name: 'count',
+          type: 'Int',
+          defaultValue: {kind: 'IntValue', value: '10'},
+        },
+    hasCursorArgumentDefinition ? null : {name: 'cursor', type: 'String'},
+  ].filter(Boolean);
+
+  const argumentDefinitions = makeArgumentsDefinitionsDirective([
+    ...baseArgumentDefinitions,
+    ...usedArgumentDefinition,
+  ]);
+
+  return {...tempFragmentDefinition, directives: [argumentDefinitions]};
+};
+
+export const astByNamedPath = (ast, namedPath, customVisitor) => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+  let target;
+  let baseVisitor = {
+    InlineFragment: (node, key, parent, path, ancestors) => {
+      const nextIsInlineFragment = nextName.startsWith('$inlineFragment.');
+      if (nextIsInlineFragment) {
+        const typeName = nextName.replace('$inlineFragment.', '');
+        const isNextTargetNode = node.typeCondition.name.value === typeName;
+
+        if (isNextTargetNode) {
+          if (remaining?.length === 1 && isNextTargetNode) {
+            target = {node, key, parent, path, ancestors: [...ancestors]};
+            return BREAK;
+          } else if (isNextTargetNode) {
+            remaining = remaining.slice(1);
+            nextName = remaining[0];
+          }
+        }
+      }
+    },
+    Field: (node, key, parent, path, ancestors) => {
+      const isNextTargetNode = node.name.value === nextName;
+      if (remaining?.length === 1 && isNextTargetNode) {
+        target = {node, key, parent, path, ancestors: [...ancestors]};
+        return BREAK;
+      } else if (isNextTargetNode) {
+        remaining = remaining.slice(1);
+        nextName = remaining[0];
+      }
+    },
+  };
+
+  let visitor = customVisitor ? customVisitor(baseVisitor) : baseVisitor;
+
+  visit(ast, visitor);
+  return target;
+};
+
+export const findUnusedOperationVariables = (
+  operationDefinition: OperationDefinitionNode,
+) => {
+  const variableNames = (operationDefinition.variableDefinitions || []).map(
+    (def) => {
+      return def.variable.name.value;
+    },
+  );
+
+  let unusedVariables = new Set(variableNames);
+
+  let baseVisitor = {
+    Variable: (node, key, parent, path, ancestors) => {
+      if (variableNames.includes(node.name.value)) {
+        unusedVariables.delete(node.name.value);
+      }
+    },
+  };
+
+  let visitor = baseVisitor;
+
+  visit(operationDefinition.selectionSet, visitor);
+  return unusedVariables;
+};
+
+export const pruneOperationToNamedPath = (
+  operationDefinition: OperationDefinitionNode,
+  namedPath: NamedPath,
+): OperationDefinitionNode => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+
+  const processNode = (node, key, parent, path, ancestors) => {
+    const isNextTargetNode = node.name.value === nextName;
+    if (remaining?.length === 1 && isNextTargetNode) {
+      return false;
+    } else if (isNextTargetNode) {
+      remaining = remaining.slice(1);
+      nextName = remaining[0];
+      return;
+    } else {
+      return null;
+    }
+  };
+
+  const result = visit(operationDefinition, {
+    Field: processNode,
+    FragmentSpread: processNode,
+  });
+
+  return result;
+};
+
+export const updateAstAtPath = (ast, namedPath, updater, customVisitor) => {
+  let remaining = [...namedPath];
+  let nextName = remaining[0];
+
+  let baseVisitor = {
+    Field: (node, key, parent, path, ancestors) => {
+      const isNextTargetNode = node.name.value === nextName;
+      if ((remaining || []).length === 1 && isNextTargetNode) {
+        return updater(node, key, parent, path, ancestors);
+      } else if ((remaining || []).length === 0) {
+        return false;
+      } else if (isNextTargetNode) {
+        remaining = remaining.slice(1);
+        nextName = remaining[0];
+      }
+    },
+  };
+
+  let visitor = customVisitor ? customVisitor(baseVisitor) : baseVisitor;
+
+  return visit(ast, visitor);
+};
+
+export const renameOperation = (
+  operationDefinition: OperationDefinitionNode,
+  name: string,
+): OperationDefinitionNode => {
+  const nameNode: NameNode = !!operationDefinition.name?.value
+    ? {...operationDefinition.name, value: name}
+    : {kind: 'Name', value: name};
+  return {...operationDefinition, name: nameNode};
+};
+
+export const makeAstDirective = ({
+  name,
+  args,
+}: {
+  name: string,
+  args: Array<any>,
+}) => {
+  return {
+    kind: 'Directive',
+    name: {
+      kind: 'Name',
+      value: name,
+    },
+    arguments: args,
+  };
+};
+
+export const makeArgumentsDefinitionsDirective = (
+  defs: Array<{
+    name: string,
+    type: string,
+    defaultValue?: {
+      kind: string,
+      value: any,
+    },
+  }>,
+) => {
+  const astDirective = makeAstDirective({
+    name: 'argumentDefinitions',
+    args: defs.map((def) => {
+      const defaultValueField = !!def.defaultValue
+        ? [
+            {
+              kind: 'ObjectField',
+              name: {
+                kind: 'Name',
+                value: 'defaultValue',
+              },
+              value: {
+                kind: def.defaultValue.kind,
+                value: def.defaultValue.value,
+              },
+            },
+          ]
+        : [];
+
+      return {
+        kind: 'Argument',
+        name: {
+          kind: 'Name',
+          value: def.name,
+        },
+        value: {
+          kind: 'ObjectValue',
+          fields: [
+            {
+              kind: 'ObjectField',
+              name: {
+                kind: 'Name',
+                value: 'type',
+              },
+              value: {
+                kind: 'StringValue',
+                value: def.type,
+                block: false,
+              },
+            },
+            ...defaultValueField,
+          ],
+        },
+      };
+    }),
+  });
+
+  return astDirective;
+};
+
+export const makeArgumentsDirective = (
+  defs: Array<{
+    argName: string,
+    variableName: string,
+  }>,
+) => {
+  return makeAstDirective({
+    name: 'arguments',
+    args: defs.map((def) => {
+      return {
+        kind: 'Argument',
+        name: {
+          kind: 'Name',
+          value: def.name,
+        },
+        value: {
+          kind: 'Variable',
+          name: {
+            kind: 'Name',
+            value: def.variableName,
+          },
+        },
+      };
+    }),
+  });
+};
+
+export const findFragmentVariables = (
+  schema: GraphQLSchema,
+  def: FragmentDefinitionNode,
+) => {
+  if (!schema) {
+    return {};
+  }
+
+  const typeInfo = new TypeInfo(schema);
+
+  let fragmentVariables = {};
+
+  visit(
+    def,
+    visitWithTypeInfo(typeInfo, {
+      Variable: function (node, key, parent, path, ancestors) {
+        const usedVariables = findVariableTypeFromAncestorPath(
+          schema,
+          def,
+          node,
+          ancestors,
+        );
+        const existingVariables = fragmentVariables[def.name.value] || [];
+        const alreadyHasVariable =
+          // TODO: Don't filter boolean, fix findVariableTypeFromAncestorPath
+          existingVariables
+            .filter(Boolean)
+            .some((existingDef) => existingDef.name === def.name.value);
+        fragmentVariables[def.name.value] = alreadyHasVariable
+          ? existingVariables
+          : [...existingVariables, usedVariables];
+      },
+    }),
+  );
+
+  return fragmentVariables;
+};
+
 let findFragmentDependencies = (
+  schema: ?GraphQLSchema,
   operationDefinitions: Array<FragmentDefinitionNode>,
   def: OperationDefinitionNode | FragmentDefinitionNode,
 ): Array<FragmentDefinitionNode> => {
   const fragmentByName = (name: string) => {
-    return operationDefinitions.find(def => def.name.value === name);
+    return operationDefinitions.find((def) => def.name.value === name);
   };
 
   const findReferencedFragments = (
@@ -180,9 +962,11 @@ let findFragmentDependencies = (
     const selections = selectionSet.selections;
 
     const namedFragments = selections
-      .map(selection => {
+      .map((selection) => {
         if (selection.kind === 'FragmentSpread') {
-          return fragmentByName(selection.name.value);
+          const fragmentDef = fragmentByName(selection.name.value);
+
+          return fragmentDef;
         } else {
           return null;
         }
@@ -211,6 +995,84 @@ let findFragmentDependencies = (
   const selectionSet = def.selectionSet;
 
   return findReferencedFragments(selectionSet);
+};
+
+let collectFragmentVariables = (
+  schema: ?GraphQLSchema,
+  operationDefinitions: Array<FragmentDefinitionNode>,
+): ShallowFragmentVariables => {
+  const entries = operationDefinitions
+    .map((fragmentDefinition) => {
+      let usedVariables = {};
+
+      if (!!schema && fragmentDefinition.kind === 'FragmentDefinition') {
+        usedVariables = findFragmentVariables(schema, fragmentDefinition);
+      }
+
+      return usedVariables;
+    })
+    .reduce((acc, next) => Object.assign(acc, next), {});
+
+  return entries;
+};
+
+const computeDeepFragmentVariables = (
+  schema: GraphQLSchema,
+  operationDataList: Array<OperationData>,
+  shallowFragmentVariables: ShallowFragmentVariables,
+) => {
+  const fragmentByName = (name: string) => {
+    return operationDataList.find(
+      (operationData) => operationData.operationDefinition.name?.value === name,
+    );
+  };
+
+  const entries = operationDataList
+    .map((operationData) => {
+      const operation = operationData.operationDefinition;
+      if (operation.kind === 'FragmentDefinition' && !!operation.name) {
+        const localVariables =
+          shallowFragmentVariables[operation.name.value] || [];
+        const visitedFragments = new Set();
+
+        const helper = (deps) => {
+          return deps.reduce((acc, dep) => {
+            const depName = dep.name.value;
+            if (visitedFragments.has(depName)) {
+              return acc;
+            } else {
+              visitedFragments.add(depName);
+              const depLocalVariables = shallowFragmentVariables[depName] || [];
+              const subDep = fragmentByName(depName);
+              if (subDep) {
+                const subDeps = helper(subDep.fragmentDependencies);
+                return {...acc, [depName]: depLocalVariables, ...subDeps};
+              } else {
+                return {...acc, [depName]: depLocalVariables};
+              }
+            }
+          }, []);
+        };
+
+        let deepFragmentVariables = helper(operationData.fragmentDependencies);
+
+        return [
+          operation.name.value,
+          {
+            shallow: localVariables,
+            deep: {
+              [operation.name.value]: localVariables,
+              ...deepFragmentVariables,
+            },
+          },
+        ];
+      } else {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  return Object.fromEntries(entries);
 };
 
 let operationNodesMemo: [
@@ -292,8 +1154,8 @@ export class ToolbarMenu extends Component<
       <a
         className="toolbar-menu toolbar-button"
         onClick={this.handleOpen}
-        onMouseDown={e => e.preventDefault()}
-        ref={node => {
+        onMouseDown={(e) => e.preventDefault()}
+        ref={(node) => {
           this._node = node;
         }}
         title={this.props.title}>
@@ -365,7 +1227,7 @@ class CodeDisplay extends React.PureComponent<CodeDisplayProps, {}> {
   }
 
   render() {
-    return <div ref={ref => (this._node = ref)} />;
+    return <div ref={(ref) => (this._node = ref)} />;
   }
 }
 
@@ -385,6 +1247,26 @@ type Props = {|
   onGenerateCodesandbox?: ?({sandboxId: string}) => void,
   schema: ?GraphQLSchema,
 |};
+
+type GitHubRepositoryIdentifier = {|
+  owner: string,
+  name: string,
+  branch: string,
+|};
+
+const descriptionOfGitHubRepositoryIdentifier = (
+  repoIdentifier: GitHubRepositoryIdentifier,
+): string => {
+  return `${repoIdentifier.owner}/${repoIdentifier.name}:"${repoIdentifier.branch}"`;
+};
+type GitHubInfo = {|
+  login: ?string,
+  targetRepo: ?GitHubRepositoryIdentifier,
+  availableRepositories: ?Array<GitHubRepositoryIdentifier>,
+  repoSearch: ?string,
+  searchOpen: boolean,
+|};
+
 type State = {|
   showCopiedTooltip: boolean,
   optionValuesBySnippet: Map<Snippet, OptionValues>,
@@ -394,6 +1276,13 @@ type State = {|
     | {type: 'loading'}
     | {type: 'success', sandboxId: string}
     | {type: 'error', error: string},
+  gitHubPushResult:
+    | null
+    | {type: 'loading'}
+    | {type: 'success'}
+    | {type: 'error', error: string},
+  gitHubInfo: ?GitHubInfo,
+  forceOverwriteFiles: {[string]: boolean},
 |};
 
 class CodeExporter extends Component<Props, State> {
@@ -403,6 +1292,9 @@ class CodeExporter extends Component<Props, State> {
     optionValuesBySnippet: new Map(),
     snippet: null,
     codesandboxResult: null,
+    gitHubPushResult: null,
+    gitHubInfo: {searchOpen: false},
+    snippetStorage: null,
   };
 
   _activeSnippet = (): Snippet =>
@@ -410,12 +1302,17 @@ class CodeExporter extends Component<Props, State> {
 
   setSnippet = (snippet: Snippet) => {
     this.props.onSelectSnippet && this.props.onSelectSnippet(snippet);
-    this.setState({snippet, codesandboxResult: null});
+
+    const snippetStorage = JSON.parse(
+      localStorage.getItem(snippetStorageName(snippet)) || '{}',
+    );
+
+    this.setState({snippet, snippetStorage, codesandboxResult: null});
   };
 
   setLanguage = (language: string) => {
     const snippet = this.props.snippets.find(
-      snippet => snippet.language === language,
+      (snippet) => snippet.language === language,
     );
 
     if (snippet) {
@@ -445,8 +1342,10 @@ class CodeExporter extends Component<Props, State> {
     };
   };
 
-  _generateCodesandbox = async (operationDataList: Array<OperationData>) => {
-    this.setState({codesandboxResult: {type: 'loading'}});
+  _generateFiles = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+  ) => {
     const snippet = this._activeSnippet();
     if (!snippet) {
       // Shouldn't be able to get in this state, but just in case...
@@ -467,11 +1366,47 @@ class CodeExporter extends Component<Props, State> {
       return;
     }
     try {
-      const sandboxResult = await createCodesandbox(
-        generateFiles(
-          this._collectOptions(snippet, operationDataList, this.props.schema),
-        ),
+      const {query, variables = {}} = this.props;
+
+      const {fragmentVariables, operationDataList} = computeOperationDataList({
+        query,
+        variables,
+        schema: this.props.schema,
+      });
+
+      const generateOptions = this._collectOptions(
+        snippet,
+        operationDataList,
+        this.props.schema,
+        fragmentVariables,
       );
+
+      const files = await generateFiles(generateOptions);
+
+      return files;
+    } catch (e) {
+      console.error('Error generating files', e);
+    }
+  };
+
+  _generateCodesandbox = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+  ) => {
+    this.setState({codesandboxResult: {type: 'loading'}});
+
+    try {
+      const files = await this._generateFiles(
+        operationDataList,
+        fragmentVariables,
+      );
+
+      if (!files) {
+        console.warn('No files generated');
+        return;
+      }
+
+      const sandboxResult = await createCodesandbox(files);
       this.setState({
         codesandboxResult: {type: 'success', ...sandboxResult},
       });
@@ -488,13 +1423,120 @@ class CodeExporter extends Component<Props, State> {
     }
   };
 
+  _pushChangesToGitHub = async (
+    operationDataList: Array<OperationData>,
+    fragmentVariables,
+    fileOverwriteList: {[string]: boolean},
+  ) => {
+    this.setState({gitHubPushResult: {type: 'loading'}});
+
+    const targetRepo = this.state.gitHubInfo?.targetRepo;
+
+    if (!targetRepo) {
+      this.setState({
+        gitHubPushResult: {
+          type: 'error',
+          error: 'You must select a target GitHub repository to sync with',
+        },
+      });
+
+      return;
+    }
+
+    try {
+      const files = await this._generateFiles(
+        operationDataList,
+        fragmentVariables,
+      );
+
+      if (!files) {
+        console.warn('No files generated');
+        return;
+      }
+
+      const transformedFiles = Object.entries(files)
+        .filter(([path, details]) => {
+          return typeof fileOverwriteList[path] === 'undefined'
+            ? true
+            : fileOverwriteList[path];
+        })
+        .map(([path, details]) => {
+          const fileContent =
+            typeof details.content === 'object'
+              ? JSON.stringify(details.content, null, 2)
+              : details.content;
+
+          return {
+            path: path,
+            mode: '100644',
+            content: fileContent,
+          };
+        });
+
+      const acceptOverrides = Object.entries(fileOverwriteList).length > 0;
+
+      const pushResults = await OG.pushFilesToBranch({
+        owner: targetRepo.owner,
+        name: targetRepo.name,
+        branch: targetRepo.branch,
+        message: 'Updates from OneGraph code generator',
+        treeFiles: transformedFiles,
+        acceptOverrides,
+      });
+
+      if (!!pushResults) {
+        if (typeof pushResults.error === 'string') {
+          this.setState({
+            gitHubPushResult: {
+              type: 'error',
+              error: pushResults.error,
+            },
+          });
+        } else if (!!pushResults.confirmationNeeded) {
+          this.setState((oldState) => {
+            return {
+              gitHubPushResult: {
+                type: 'error',
+                error: 'Confirm file overwrite',
+              },
+              gitHubConfirmationModal: {
+                changeset: pushResults.changeset,
+              },
+            };
+          });
+        } else if (!!pushResults.ok) {
+          this.setState({
+            gitHubPushResult: {
+              type: 'success',
+            },
+          });
+          setTimeout(() => {
+            this.setState({
+              gitHubPushResult: null,
+            });
+          }, 2500);
+        }
+      }
+    } catch (e) {
+      console.error('Error in GitHub synch', e);
+      this.setState({
+        gitHubPushResult: {
+          type: 'error',
+          error: 'Failed to sync with GitHub',
+        },
+      });
+    }
+  };
+
   _collectOptions = (
     snippet: Snippet,
     operationDataList: Array<OperationData>,
     schema: ?GraphQLSchema,
+    fragmentVariables,
   ): GenerateOptions => {
     const {serverUrl, context = {}, headers = {}} = this.props;
     const optionValues = this.getOptionValues(snippet);
+
     return {
       serverUrl,
       headers,
@@ -502,39 +1544,132 @@ class CodeExporter extends Component<Props, State> {
       operationDataList,
       options: optionValues,
       schema,
+      fragmentVariables,
     };
   };
 
+  setOverwritePath({path, overwrite}: {path: string, overwrite: boolean}) {
+    const newSnippetStorage = {
+      ...this.state.snippetStorage,
+      overwriteSettings: {
+        ...(this.state.snippetStorage?.overwriteSettings || {}),
+        [path]: overwrite,
+      },
+    };
+    localStorage.setItem(
+      snippetStorageName(this._activeSnippet()),
+      JSON.stringify(newSnippetStorage),
+    );
+    this.setState({snippetStorage: newSnippetStorage});
+  }
+
+  setTargetRepo(owner: string, name: string, branch: string) {
+    const newSnippetStorage = {
+      ...this.state.snippetStorage,
+      targetRepo: {
+        owner: owner,
+        name: name,
+        branch: branch,
+      },
+    };
+
+    localStorage.setItem(
+      snippetStorageName(this._activeSnippet()),
+      JSON.stringify(newSnippetStorage),
+    );
+
+    this.setState((oldState) => {
+      return {
+        ...oldState,
+        gitHubInfo: {
+          ...oldState.gitHubInfo,
+          searchOpen: false,
+          targetRepo: {
+            owner: owner,
+            name: name,
+            branch: branch,
+          },
+        },
+      };
+    });
+  }
+
+  componentDidMount() {
+    const snippetStorage = JSON.parse(
+      localStorage.getItem(snippetStorageName(this._activeSnippet())) || '{}',
+    );
+
+    this.setState({snippetStorage: snippetStorage});
+
+    OG.fetchFindMeOnGitHub().then((result) => {
+      const rawGitHubInfo = result.data?.me?.github;
+      if (!!rawGitHubInfo) {
+        const availableRepositories = rawGitHubInfo.repositories.edges.map(
+          (edge) => {
+            const [owner, name] = edge.node.nameWithOwner.split('/');
+            return {
+              owner: owner,
+              name: name,
+              branch: 'main',
+            };
+          },
+        );
+
+        const defaultRepo = snippetStorage?.targetRepo;
+
+        const gitHubInfo = {
+          login: rawGitHubInfo.login,
+          availableRepositories: availableRepositories,
+          targetRepo: defaultRepo || availableRepositories[0],
+        };
+
+        this.setState((oldState) => ({
+          ...oldState,
+          gitHubInfo: {...oldState.gitHubInfo, ...gitHubInfo},
+        }));
+      }
+    });
+  }
+
   render() {
     const {query, snippets, variables = {}} = this.props;
-    const {showCopiedTooltip, codesandboxResult} = this.state;
+    const {showCopiedTooltip, codesandboxResult, gitHubPushResult} = this.state;
 
     const snippet = this._activeSnippet();
     const {name, language, generate} = snippet;
 
+    const gitHubSearchOpen = this.state.gitHubInfo?.searchOpen;
+
     const {
-      operationDefinitions: operationDefinitions,
-      fragmentDefinitions: fragmentDefinitions,
-      rawOperationDataList: rawOperationDataList,
-      operationDataList: operationDataList,
-    } = computeOperationDataList({query, variables});
+      fragmentVariables,
+      operationDefinitions,
+      operationDataList,
+    } = computeOperationDataList({
+      query,
+      variables,
+      schema: this.props.schema,
+    });
 
     const optionValues: Array<OperationData> = this.getOptionValues(snippet);
-
     const codeSnippet = operationDefinitions.length
       ? generate(
-          this._collectOptions(snippet, operationDataList, this.props.schema),
+          this._collectOptions(
+            snippet,
+            operationDataList,
+            this.props.schema,
+            fragmentVariables,
+          ),
         )
       : null;
 
     const supportsCodesandbox = snippet.generateCodesandboxFiles;
 
     const languages = [
-      ...new Set(snippets.map(snippet => snippet.language)),
+      ...new Set(snippets.map((snippet) => snippet.language)),
     ].sort((a, b) => a.localeCompare(b));
 
     return (
-      <div className="graphiql-code-exporter" style={{minWidth: 410}}>
+      <div className="graphiql-code-exporter" style={{minWidth: 910}}>
         <div
           style={{
             fontFamily:
@@ -550,8 +1685,8 @@ class CodeExporter extends Component<Props, State> {
             </ToolbarMenu>
             <ToolbarMenu label={name} title="Mode">
               {snippets
-                .filter(snippet => snippet.language === language)
-                .map(snippet => (
+                .filter((snippet) => snippet.language === language)
+                .map((snippet) => (
                   <li
                     key={snippet.name}
                     onClick={() => this.setSnippet(snippet)}>
@@ -571,7 +1706,7 @@ class CodeExporter extends Component<Props, State> {
                 }}>
                 Options
               </div>
-              {snippet.options.map(option => (
+              {snippet.options.map((option) => (
                 <div key={option.id}>
                   <input
                     id={option.id}
@@ -599,28 +1734,178 @@ class CodeExporter extends Component<Props, State> {
           )}
           {supportsCodesandbox ? (
             <div style={{padding: '0 7px 8px'}}>
-              <button
-                className={'toolbar-button'}
-                style={{
-                  backgroundColor: 'white',
-                  border: 'none',
-                  outline: 'none',
-                  maxWidth: 320,
-                  display: 'flex',
-                  ...(codeSnippet
-                    ? {}
-                    : {
-                        opacity: 0.6,
-                        cursor: 'default',
-                        background: '#ececec',
-                      }),
-                }}
-                type="button"
-                disabled={!codeSnippet}
-                onClick={() => this._generateCodesandbox(operationDataList)}>
-                {codesandboxIcon}{' '}
-                <span style={{paddingLeft: '0.5em'}}>Create CodeSandbox</span>
-              </button>
+              <div style={{display: 'inline-blick'}}>
+                {(this.state.gitHubInfo?.availableRepositories || []).length >
+                0 ? (
+                  <ToolbarMenu
+                    label={`Sync ${
+                      this.state.gitHubInfo?.targetRepo
+                        ? descriptionOfGitHubRepositoryIdentifier(
+                            this.state.gitHubInfo.targetRepo,
+                          )
+                        : null
+                    }`}
+                    title="GitHub Repository and Branch">
+                    <li
+                      onClick={() => {
+                        this._pushChangesToGitHub(
+                          operationDataList,
+                          fragmentVariables,
+                          {},
+                        );
+
+                        return true;
+                      }}>
+                      {gitPushIcon} Push changes
+                    </li>
+                    <li
+                      onClick={async () => {
+                        const repoName = prompt(
+                          'Name of new GitHub repository',
+                        );
+                        if (!repoName?.trim()) {
+                          return;
+                        }
+
+                        const result = await OG.executeCreateRepo(repoName);
+                        const repo =
+                          result?.data?.gitHub?.makeRestCall?.post?.jsonBody;
+
+                        if (!repo) {
+                          this.setState({
+                            gitHubPushResult: {
+                              type: 'error',
+                              error: 'Failed to create GitHub repository',
+                            },
+                          });
+                          return;
+                        }
+
+                        this.setTargetRepo(
+                          repo?.owner?.login,
+                          repo?.name,
+                          'main',
+                        );
+                      }}>
+                      {gitNewRepoIcon} New repository
+                    </li>
+                    <li
+                      style={
+                        gitHubSearchOpen
+                          ? {
+                              borderBottom: '1px solid #aaa',
+                              marginBottom: '2px',
+                            }
+                          : null
+                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        event.nativeEvent.stopImmediatePropagation();
+                        this.setState((oldState) => {
+                          return {
+                            ...oldState,
+                            gitHubInfo: {
+                              ...oldState.gitHubInfo,
+                              searchOpen: !gitHubSearchOpen,
+                            },
+                          };
+                        });
+                      }}
+                      onMouseDown={(event) => {
+                        event.stopPropagation();
+                        event.nativeEvent.stopImmediatePropagation();
+                        return false;
+                      }}>
+                      Change repository{' '}
+                      {downArrow(
+                        gitHubSearchOpen
+                          ? null
+                          : {style: {transform: 'rotate(-90deg)'}},
+                      )}
+                    </li>
+                    {gitHubSearchOpen ? (
+                      <li style={{paddingTop: '2px'}}>
+                        <input
+                          placeholder="Search"
+                          style={{
+                            border: 'none',
+                            width: '100%',
+                            borderRadius: '64px',
+                            margin: '2px',
+                            paddingLeft: '6px',
+                          }}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            event.nativeEvent.stopImmediatePropagation();
+                          }}
+                          onMouseDown={(event) => {
+                            event.stopPropagation();
+                            event.nativeEvent.stopImmediatePropagation();
+                            return false;
+                          }}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            let repoSearch = value;
+                            if (value.trim() === '') {
+                              repoSearch = null;
+                            }
+
+                            this.setState((oldState) => {
+                              return {
+                                ...oldState,
+                                gitHubInfo: {
+                                  ...oldState.gitHubInfo,
+                                  repoSearch,
+                                },
+                              };
+                            });
+                          }}
+                          type="text"
+                        />
+                      </li>
+                    ) : null}
+                    {gitHubSearchOpen
+                      ? (this.state.gitHubInfo?.availableRepositories || [])
+                          .map((repoInfo: GitHubRepositoryIdentifier) => {
+                            const nameWithOwner = `${repoInfo.owner}/${repoInfo.name}`;
+
+                            if (
+                              this.state.gitHubInfo?.repoSearch &&
+                              !nameWithOwner.match(
+                                this.state.gitHubInfo?.repoSearch,
+                              )
+                            ) {
+                              return null;
+                            }
+
+                            return (
+                              <li
+                                key={nameWithOwner}
+                                onClick={() => {
+                                  const branchName = prompt(
+                                    'Which branch should we push to?',
+                                    'main',
+                                  );
+
+                                  if (!branchName?.trim()) {
+                                    return;
+                                  }
+
+                                  this.setTargetRepo(
+                                    repoInfo.owner,
+                                    repoInfo.name,
+                                    branchName,
+                                  );
+                                }}>
+                                {nameWithOwner}
+                              </li>
+                            );
+                          })
+                          .filter(Boolean)
+                      : null}
+                  </ToolbarMenu>
+                ) : null}
+              </div>
               {codesandboxResult ? (
                 <div style={{paddingLeft: 5, paddingTop: 5}}>
                   {codesandboxResult.type === 'loading' ? (
@@ -633,6 +1918,22 @@ class CodeExporter extends Component<Props, State> {
                       target="_blank"
                       href={`https://codesandbox.io/s/${codesandboxResult.sandboxId}`}>
                       Visit CodeSandbox
+                    </a>
+                  )}
+                </div>
+              ) : null}
+              {gitHubPushResult ? (
+                <div style={{paddingLeft: 5, paddingTop: 5}}>
+                  {gitHubPushResult.type === 'loading' ? (
+                    'Loading...'
+                  ) : gitHubPushResult.type === 'error' ? (
+                    `Error: ${gitHubPushResult.error}`
+                  ) : (
+                    <a
+                      href={`https://github.com/${this.state.gitHubInfo?.targetRepo?.owner}/${this.state.gitHubInfo?.targetRepo?.name}`}
+                      target="_blank"
+                      rel="noopener noreferrer">
+                      Files synchronized
                     </a>
                   )}
                 </div>
@@ -690,21 +1991,150 @@ class CodeExporter extends Component<Props, State> {
             borderTop: '1px solid rgb(220, 220, 220)',
             fontSize: 12,
           }}>
-          {codeSnippet ? (
-            <CodeDisplay
-              code={codeSnippet}
-              mode={snippet.codeMirrorMode}
-              theme={this.props.codeMirrorTheme}
-            />
-          ) : (
-            <div>
-              The query is invalid.
-              <br />
-              The generated code will appear here once the errors in the query
-              editor are resolved.
-            </div>
-          )}
+          {!this.state.gitHubConfirmationModal ? (
+            codeSnippet ? (
+              <CodeDisplay
+                code={codeSnippet}
+                mode={snippet.codeMirrorMode}
+                theme={this.props.codeMirrorTheme}
+              />
+            ) : (
+              <div>
+                The query is invalid.
+                <br />
+                The generated code will appear here once the errors in the query
+                editor are resolved.
+              </div>
+            )
+          ) : null}
         </div>
+        {!!this.state.gitHubConfirmationModal ? (
+          <Modal show={!!this.state.gitHubConfirmationModal}>
+            <div className="flex-wrapper">
+              <header className="header">File change summary</header>
+              <section className="content">
+                <div className="columns">
+                  <main className="changed">
+                    <h4>
+                      These files have changed in{' '}
+                      <code>
+                        {this.state.gitHubInfo.targetRepo.owner}/
+                        {this.state.gitHubInfo.targetRepo.name}
+                      </code>{' '}
+                      on the{' '}
+                      <code>{this.state.gitHubInfo.targetRepo.branch}</code>{' '}
+                      branch and will be overwritten
+                    </h4>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'max-content max-content',
+                        gridGap: '5px',
+                      }}>
+                      {(
+                        this.state.gitHubConfirmationModal?.changeset
+                          ?.changed || []
+                      ).map((file) => {
+                        const checked =
+                          this.state.snippetStorage?.overwriteSettings?.[
+                            file.path
+                          ] ?? true;
+
+                        return (
+                          <>
+                            <label htmlFor={file.path}>
+                              <input
+                                type="checkbox"
+                                id={file.path}
+                                key={file.path}
+                                checked={checked}
+                                onChange={(event) => {
+                                  this.setOverwritePath({
+                                    path: file.path,
+                                    overwrite: !checked,
+                                  });
+                                }}
+                              />{' '}
+                              {file.path}
+                            </label>
+                            <span> - {checked ? 'overwrite' : 'skip'}</span>
+                          </>
+                        );
+                      })}
+                      {(this.state.gitHubConfirmationModal?.changeset.new || [])
+                        .length > 0 ? (
+                        <>
+                          <h4>New files</h4>
+                          <span />
+                          {(
+                            this.state.gitHubConfirmationModal?.changeset
+                              ?.new || []
+                          ).map((file) => {
+                            return (
+                              <>
+                                <span key={file.path} style={{color: 'green'}}>
+                                  <span>{file.path}</span>
+                                </span>
+                                <span></span>
+                              </>
+                            );
+                          })}
+                        </>
+                      ) : null}
+                      {(
+                        this.state.gitHubConfirmationModal?.changeset
+                          .unchanged || []
+                      ).length > 0 ? (
+                        <>
+                          <h4> Unchanged files</h4>
+                          <span></span>
+                          {(
+                            this.state.gitHubConfirmationModal?.changeset
+                              ?.unchanged || []
+                          ).map((file) => {
+                            return (
+                              <>
+                                <span key={file.path} style={{color: 'gray'}}>
+                                  <span>{file.path}</span>
+                                </span>
+                                <span></span>
+                              </>
+                            );
+                          })}
+                        </>
+                      ) : null}
+                    </div>
+                  </main>
+                </div>
+              </section>
+              <footer>
+                <button
+                  onClick={() => {
+                    this.setState({
+                      gitHubConfirmationModal: null,
+                      gitHubPushResult: null,
+                    });
+                    this._pushChangesToGitHub(
+                      operationDataList,
+                      fragmentVariables,
+                      this.state.snippetStorage?.overwriteSettings,
+                    );
+                  }}>
+                  Confirm
+                </button>
+                <button
+                  onClick={() => {
+                    this.setState({
+                      gitHubConfirmationModal: null,
+                      gitHubPushResult: null,
+                    });
+                  }}>
+                  Cancel
+                </button>
+              </footer>
+            </div>
+          </Modal>
+        ) : null}
       </div>
     );
   }
@@ -785,7 +2215,7 @@ export default function CodeExporterWrapper({
     <div
       className="docExplorerWrap"
       style={{
-        width: 440,
+        width: 1440,
         minWidth: 440,
         zIndex: 7,
       }}>

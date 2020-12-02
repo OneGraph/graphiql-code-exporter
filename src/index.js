@@ -1,6 +1,19 @@
 // @flow
 
-import CodeExporter, {computeOperationDataList} from './CodeExporter';
+import CodeExporter, {
+  computeOperationDataList,
+  astByNamedPath,
+  extractNodeToConnectionFragment,
+  namedPathOfAncestors,
+  pruneOperationToNamedPath,
+  renameOperation,
+  makeAstDirective,
+  makeArgumentsDefinitionsDirective,
+  makeArgumentsDirective,
+  updateAstAtPath,
+  findUnusedOperationVariables,
+  findFragmentVariables,
+} from './CodeExporter';
 import capitalizeFirstLetter from './utils/capitalizeFirstLetter';
 import jsCommentsFactory from './utils/jsCommentsFactory';
 import snippets from './snippets/index';
@@ -20,7 +33,18 @@ export {
   computeOperationDataList,
   capitalizeFirstLetter,
   jsCommentsFactory,
+  findUnusedOperationVariables,
   snippets,
+  astByNamedPath,
+  findFragmentVariables,
+  extractNodeToConnectionFragment,
+  namedPathOfAncestors,
+  pruneOperationToNamedPath,
+  renameOperation,
+  makeAstDirective,
+  updateAstAtPath,
+  makeArgumentsDefinitionsDirective,
+  makeArgumentsDirective,
 };
 
 export default CodeExporter;

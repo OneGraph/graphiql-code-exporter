@@ -10,3 +10,56 @@
 .graphiql-code-exporter .CodeMirror-cursors {
   display: none;
 }
+
+.flex-wrapper {
+  max-height: 60vh;
+  background: #ccc;
+  display: flex;
+  flex-direction: column;
+}
+.flex-wrapper .header,
+.footer {
+  height: unset;
+  background: #666;
+  color: #fff;
+  padding: 4px;
+}
+.flex-wrapper .content {
+  display: flex;
+  flex: 1;
+  background: #999;
+  color: #000;
+}
+.flex-wrapper .columns {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.flex-wrapper .changed {
+  flex: 1;
+  order: 1;
+  background: #eee;
+  padding: 6px;
+  overflow-y: scroll;
+}
+.flex-wrapper .sidebar-new {
+  background: #ccc;
+  flex: 1 1;
+  order: 2;
+  padding: 6px;
+  max-height: 33%;
+  overflow-y: scroll;
+}
+.flex-wrapper .sidebar-unchanged {
+  order: 3;
+  flex: 1 1;
+  max-height: 33%;
+  overflow-y: scroll;
+  background: #ddd;
+  padding: 6px;
+}
+
+.flex-wrapper h1 {
+  color: white;
+  padding: 6px;
+}
